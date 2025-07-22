@@ -1,0 +1,4 @@
+#!/bin/sh
+cd `dirname $0`
+../src/lasp_ven -n .:../src $*
+# for shared lib, use: opp_run -l ../src/lasp_ven -n .:../src $*
