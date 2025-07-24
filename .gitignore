@@ -55,6 +55,6 @@ simulations/*.tmp
 Thumbs.db
 
 # Compiled simulation executables
-lasp_ven
+# lasp_ven
 *.exe
 *.dll

@@ -183,7 +183,9 @@ ServicePlacement* LASPManager::thresholdBasedPlacement(const ServiceRequest& req
     ServicePlacement* bestPlacement = nullptr;
     double bestLatency = std::numeric_limits<double>::max();
     
-    for (auto& [serverId, server] : edgeServers) {
+    for (std::map<int, EdgeServer>::iterator it = edgeServers.begin(); it != edgeServers.end(); ++it) {
+        int serverId = it->first;
+        EdgeServer& server = it->second;
         if (!server.isActive) continue;
         if (server.currentLoad / server.computeCapacity > loadThreshold) continue;
         if (!canServerHandleRequest(server, request)) continue;
@@ -211,7 +213,9 @@ ServicePlacement* LASPManager::greedyPlacement(const ServiceRequest& request)
     ServicePlacement* bestPlacement = nullptr;
     double bestLatency = std::numeric_limits<double>::max();
     
-    for (auto& [serverId, server] : edgeServers) {
+    for (std::map<int, EdgeServer>::iterator it = edgeServers.begin(); it != edgeServers.end(); ++it) {
+        int serverId = it->first;
+        EdgeServer& server = it->second;
         if (!server.isActive) continue;
         if (!canServerHandleRequest(server, request)) continue;
         
@@ -274,7 +278,9 @@ bool LASPManager::canServerHandleRequest(const EdgeServer& server, const Service
 void LASPManager::updateServerLoad()
 {
     // Decay server loads over time (services completing)
-    for (auto& [serverId, server] : edgeServers) {
+    for (std::map<int, EdgeServer>::iterator it = edgeServers.begin(); it != edgeServers.end(); ++it) {
+        int serverId = it->first;
+        EdgeServer& server = it->second;
         server.currentLoad = std::max(0.0, server.currentLoad * 0.95); // 5% decay per evaluation
         emit(serverUtilization, server.currentLoad / server.computeCapacity);
     }
@@ -331,7 +337,8 @@ void LASPManager::finish()
     
     // Calculate final statistics
     double totalUtilization = 0.0;
-    for (const auto& [serverId, server] : edgeServers) {
+    for (std::map<int, EdgeServer>::const_iterator it = edgeServers.begin(); it != edgeServers.end(); ++it) {
+        const EdgeServer& server = it->second;
         totalUtilization += server.currentLoad / server.computeCapacity;
     }
     double avgUtilization = totalUtilization / edgeServers.size();

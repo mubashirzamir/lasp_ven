@@ -38,7 +38,11 @@ public:
         ServicePlacement* bestPlacement = nullptr;
         double bestScore = std::numeric_limits<double>::max();
         
-        for (const auto& [serverId, server] : edgeServers) {
+        for (std::map<int, EdgeServer>::const_iterator it = edgeServers.begin(); 
+             it != edgeServers.end(); ++it) {
+            int serverId = it->first;
+            const EdgeServer& server = it->second;
+            
             // Check basic eligibility
             if (!server.isActive) continue;
             
