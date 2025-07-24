@@ -1,0 +1,60 @@
+# OMNeT++ build files
+*.o
+*.lo
+*.la
+*.a
+*.so
+*.so.*
+*.d
+
+# OMNeT++ simulation binaries and temp files
+*.out
+*.vec
+*.vci
+*.sca
+*.idx
+*.cpl
+*.bak
+*.log
+*.raw
+*.old
+*.tkenvrc
+*.ned.xml
+*.pyc
+# *.xml
+
+# IDE metadata
+.cproject
+.project
+.settings/
+.nbproject/
+
+# OMNeT++ specific directories
+out/
+results/
+output/
+logs/
+omnetpp.ini~*
+
+# Generated documentation or exports
+doc/
+*.pdf
+
+# Local run folders
+simulations/results/
+simulations/output/
+simulations/*.log
+simulations/*.bak
+simulations/*.tmp
+
+# Python Jupyter Notebooks cache
+.ipynb_checkpoints/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Compiled simulation executables
+lasp_ven
+*.exe
+*.dll

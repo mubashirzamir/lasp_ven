@@ -31,6 +31,13 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc, .msg and .sm files
 OBJS = \
+    $O/lasp_ven/LASPManager.o \
+    $O/lasp_ven/VehicleApp.o \
+    $O/lasp_ven/strategies/GreedyStrategy.o \
+    $O/lasp_ven/strategies/ImprovedStrategy.o \
+    $O/lasp_ven/strategies/ThresholdStrategy.o \
+    $O/lasp_ven/utils/Logger.o \
+    $O/lasp_ven/utils/MobilityUtils.o \
     $O/veins_inet/VeinsInetApplicationBase.o \
     $O/veins_inet/VeinsInetManager.o \
     $O/veins_inet/VeinsInetManagerBase.o \
