@@ -59,12 +59,8 @@ void TestApp::handleStartOperation(inet::LifecycleOperation* operation)
     socket.bind(L3Address(), 0); // Bind to any available port
     socket.setCallback(this);
     
-    // Resolve LASP Manager address
-    L3AddressResolver().tryResolve("laspManager", laspManagerAddress);
-    if (laspManagerAddress.isUnspecified()) {
-        EV_ERROR << "Could not resolve LASP Manager address" << endl;
-        return;
-    }
+    // Use hardcoded address for LASP Manager (simplified)
+    laspManagerAddress = L3Address("192.168.1.100"); // Default IP
     
     // Schedule first request
     requestTimer = new cMessage("requestTimer");
