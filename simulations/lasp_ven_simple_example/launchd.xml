@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+SUMO Launch Configuration for LASP VEN Simulation
+-->
+<launch>
+    <copy file="straight.sumocfg" type="config" />
+    <copy file="straight.net.xml" type="data" />
+    <copy file="straight.rou.xml" type="data" />
+    <copy file="trips.trips.xml" type="data" />
+</launch>

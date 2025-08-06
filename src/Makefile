@@ -38,6 +38,11 @@ OBJS = \
     $O/lasp_ven/strategies/ThresholdStrategy.o \
     $O/lasp_ven/utils/Logger.o \
     $O/lasp_ven/utils/MobilityUtils.o \
+    $O/lasp_ven_simple/LASPManager.o \
+    $O/lasp_ven_simple/TestApp.o \
+    $O/lasp_ven_simple/strategies/GreedyStrategy.o \
+    $O/lasp_ven_simple/strategies/ThresholdStrategy.o \
+    $O/lasp_ven_simple/utils/ServicePlacementUtils.o \
     $O/veins_inet/VeinsInetApplicationBase.o \
     $O/veins_inet/VeinsInetManager.o \
     $O/veins_inet/VeinsInetManagerBase.o \
