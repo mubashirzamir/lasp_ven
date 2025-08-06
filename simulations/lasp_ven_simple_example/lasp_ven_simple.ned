@@ -7,6 +7,10 @@ import inet.physicallayer.ieee80211.packetlevel.Ieee80211ScalarRadioMedium;
 import inet.node.inet.StandardHost;
 import lasp_ven.lasp_ven_simple.LASPManager;
 import lasp_ven.lasp_ven_simple.TestApp;
+import inet.visualizer.integrated.IntegratedVisualizer;
+import inet.environment.common.PhysicalEnvironment;
+import org.car2x.veins.visualizer.roads.RoadsCanvasVisualizer;
+import org.car2x.veins.visualizer.roads.RoadsOsgVisualizer;
 
 network LaspVenSimpleSimulation
 {
@@ -14,6 +18,7 @@ network LaspVenSimpleSimulation
         double playgroundSizeX @unit(m) = default(2500m);
         double playgroundSizeY @unit(m) = default(2500m);
         double playgroundSizeZ @unit(m) = default(50m);
+        bool useOsg = default(false);
 
         @display("bgb=1000,1000");
 
@@ -28,6 +33,18 @@ network LaspVenSimpleSimulation
 
         veinsManager: VeinsInetManager {
             @display("p=162.648,614.448");
+        }
+
+        visualizer: IntegratedVisualizer {
+            @display("p=64,320");
+        }
+
+        roadsCanvasVisualizer: RoadsCanvasVisualizer {
+            @display("p=64,416");
+        }
+
+        roadsOsgVisualizer: RoadsOsgVisualizer if useOsg {
+            @display("p=192,416");
         }
 
         // LASP Manager (Edge Computing Infrastructure)
