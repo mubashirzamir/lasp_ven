@@ -7,6 +7,7 @@ import inet.physicallayer.ieee80211.packetlevel.Ieee80211ScalarRadioMedium;
 import inet.node.inet.StandardHost;
 import lasp_ven.lasp_ven_simple.LASPManager;
 import lasp_ven.lasp_ven_simple.TestApp;
+import lasp_ven.lasp_ven_simple.EdgeServerApp;
 import inet.visualizer.integrated.IntegratedVisualizer;
 import inet.environment.common.PhysicalEnvironment;
 import org.car2x.veins.visualizer.roads.RoadsCanvasVisualizer;
@@ -19,6 +20,7 @@ network LaspVenSimpleSimulation
         double playgroundSizeY @unit(m) = default(2500m);
         double playgroundSizeZ @unit(m) = default(50m);
         bool useOsg = default(false);
+        int numEdgeServers = default(3);
 
         @display("bgb=1000,1000");
 
@@ -65,9 +67,12 @@ network LaspVenSimpleSimulation
             app[0].typename = "lasp_ven.lasp_ven_simple.TestApp";
         }
 
-        // Road Side Units (optional, for extended scenarios)
-        rsu[0]: StandardHost {
-            @display("p=329.31198,347.384;i=device/antennatower");
+        // Physical Edge Servers for visualization and packet communication
+        // (These serve as both communication infrastructure and compute nodes)
+        edgeServer[numEdgeServers]: StandardHost {
+		   @display("p=100+100*index,300;i=device/server2");  // Add position
+            numApps = 1;
+            app[0].typename = "lasp_ven.lasp_ven_simple.EdgeServerApp";
         }
 
     connections allowunconnected:

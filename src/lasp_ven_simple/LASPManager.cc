@@ -53,12 +53,26 @@ void LASPManager::initialize(int stage)
 
 void LASPManager::initializeEdgeServers()
 {
-    // Create edge servers at fixed locations
+    // Create edge servers at strategic locations within road network (0-100m)
     for (int i = 0; i < numEdgeServers; i++) {
         EdgeServer server;
         server.serverId = i;
-        server.latitude = 52.5200 + (i * 0.01); // Berlin area
-        server.longitude = 13.4050 + (i * 0.01);
+        
+        // Position servers strategically across the road network
+        // Road network spans 0-100m in both X and Y directions
+        if (numEdgeServers <= 3) {
+            // For 3 servers: distribute along main road
+            server.latitude = 20.0 + (i * 30.0);  // X: 20, 50, 80 meters
+            server.longitude = 50.0;               // Y: center of road network
+        } else if (numEdgeServers <= 5) {
+            // For 5 servers: grid pattern
+            server.latitude = 10.0 + (i % 3) * 40.0;     // X: 10, 50, 90, 10, 50
+            server.longitude = 25.0 + (i / 3) * 50.0;    // Y: 25, 25, 25, 75, 75
+        } else {
+            // For 8 servers: dense grid coverage
+            server.latitude = 12.5 + (i % 4) * 25.0;     // X: every 25m
+            server.longitude = 25.0 + (i / 4) * 50.0;    // Y: 25m and 75m rows
+        }
         server.computeCapacity = 100.0; // 100 GFLOPS
         server.storageCapacity = 1000.0; // 1 TB
         server.currentLoad = 0.0;
@@ -69,7 +83,7 @@ void LASPManager::initializeEdgeServers()
         
         edgeServers[i] = server;
         EV_INFO << "Edge server " << i << " initialized at (" 
-                << server.latitude << ", " << server.longitude << ")" << endl;
+                << server.latitude << ", " << server.longitude << ") meters in road network" << endl;
     }
 }
 

@@ -1,0 +1,191 @@
+#include "EdgeServerApp.h"
+#include "inet/common/ModuleAccess.h"
+#include "inet/common/TagBase_m.h"
+#include "inet/common/TimeTag_m.h"
+#include "inet/common/lifecycle/NodeStatus.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
+#include "inet/networklayer/common/L3AddressTag_m.h"
+
+using namespace omnetpp;
+using namespace inet;
+
+namespace lasp_ven_simple {
+
+Define_Module(EdgeServerApp);
+
+void EdgeServerApp::initialize(int stage)
+{
+    ApplicationBase::initialize(stage);
+    
+    if (stage == INITSTAGE_LOCAL) {
+        // Read parameters
+        serverId = par("serverId");
+        computeCapacity = par("computeCapacity");
+        storageCapacity = par("storageCapacity");
+        localPort = par("localPort");
+        currentLoad = 0.0;
+        
+        // Initialize supported services (all services for simplicity)
+        supportedServices = {TRAFFIC_INFO, EMERGENCY_ALERT, INFOTAINMENT, NAVIGATION};
+        
+        // Initialize statistics
+        requestsReceived = registerSignal("requestsReceived");
+        requestsProcessed = registerSignal("requestsProcessed");
+        serverLoadSignal = registerSignal("serverLoad");
+        
+        EV_INFO << "EdgeServerApp " << serverId << " initialized with capacity " 
+                << computeCapacity << " GFLOPS" << endl;
+    }
+}
+
+void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
+{
+    // Setup UDP socket
+    socket.setOutputGate(gate("socketOut"));
+    socket.bind(localPort);
+    socket.setCallback(this);
+    
+    EV_INFO << "EdgeServer " << serverId << " started on port " << localPort << endl;
+}
+
+void EdgeServerApp::handleStopOperation(inet::LifecycleOperation* operation)
+{
+    socket.close();
+    EV_INFO << "EdgeServer " << serverId << " stopped" << endl;
+}
+
+void EdgeServerApp::handleCrashOperation(inet::LifecycleOperation* operation)
+{
+    socket.destroy();
+    EV_WARN << "EdgeServer " << serverId << " crashed!" << endl;
+}
+
+void EdgeServerApp::handleMessage(cMessage *msg)
+{
+    if (msg->isSelfMessage()) {
+        // Handle self-messages (timers, etc.)
+        delete msg;
+    } else {
+        socket.processMessage(msg);
+    }
+}
+
+void EdgeServerApp::handleMessageWhenUp(cMessage* msg)
+{
+    handleMessage(msg);
+}
+
+void EdgeServerApp::refreshDisplay() const
+{
+    char buf[100];
+    sprintf(buf, "Server %d\\nLoad: %.1f%%", serverId, (currentLoad / computeCapacity) * 100);
+    getDisplayString().setTagArg("t", 0, buf);
+}
+
+void EdgeServerApp::socketDataArrived(UdpSocket *socket, Packet *packet)
+{
+    emit(requestsReceived, 1);
+    
+    // Extract service request (simplified - in real implementation would deserialize)
+    ServiceRequest request;
+    request.vehicleId = 1; // Simplified
+    request.serviceType = TRAFFIC_INFO; // Default
+    request.timestamp = simTime().dbl();
+    request.latitude = 50.0; // Default position
+    request.longitude = 50.0;
+    request.priority = 1;
+    request.deadline = simTime().dbl() + 10.0;
+    request.dataSize = 1.0; // 1 MB
+    
+    // Get client address for response
+    auto addressInd = packet->getTag<L3AddressInd>();
+    L3Address clientAddr = addressInd->getSrcAddress();
+    int clientPort = 9999; // Default LASP manager port
+    
+    processServiceRequest(request, clientAddr, clientPort);
+    
+    delete packet;
+}
+
+void EdgeServerApp::socketErrorArrived(UdpSocket *socket, Indication *indication)
+{
+    EV_WARN << "EdgeServer " << serverId << " UDP error: " << indication->getName() << endl;
+    delete indication;
+}
+
+void EdgeServerApp::socketClosed(UdpSocket *socket)
+{
+    EV_INFO << "EdgeServer " << serverId << " socket closed" << endl;
+}
+
+void EdgeServerApp::processServiceRequest(const ServiceRequest& request, const L3Address& clientAddr, int clientPort)
+{
+    EV_INFO << "EdgeServer " << serverId << " processing request from vehicle " << request.vehicleId << endl;
+    
+    if (!canHandleRequest(request)) {
+        EV_WARN << "EdgeServer " << serverId << " cannot handle request - insufficient capacity or unsupported service" << endl;
+        return;
+    }
+    
+    // Process the request
+    double processingLoad = request.dataSize * 0.1; // Simple load calculation
+    updateLoad(processingLoad);
+    
+    emit(requestsProcessed, 1);
+    emit(serverLoadSignal, (currentLoad / computeCapacity) * 100);
+    
+    // Send response back to client (simplified)
+    auto response = new Packet("ServiceResponse");
+    socket.sendTo(response, clientAddr, clientPort);
+    
+    EV_INFO << "EdgeServer " << serverId << " processed request, current load: " 
+            << (currentLoad / computeCapacity) * 100 << "%" << endl;
+}
+
+bool EdgeServerApp::canHandleRequest(const ServiceRequest& request)
+{
+    // Check if service is supported
+    if (!isServiceSupported(request.serviceType)) {
+        return false;
+    }
+    
+    // Check if there's sufficient capacity
+    double requiredCapacity = request.dataSize * 0.1;
+    if ((currentLoad + requiredCapacity) > computeCapacity) {
+        return false;
+    }
+    
+    return true;
+}
+
+bool EdgeServerApp::isServiceSupported(ServiceType serviceType) const
+{
+    for (ServiceType service : supportedServices) {
+        if (service == serviceType) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void EdgeServerApp::updateLoad(double additionalLoad)
+{
+    currentLoad += additionalLoad;
+    
+    // Simple load decay over time (services complete)
+    if (simTime() > 0) {
+        currentLoad *= 0.95; // 5% decay per update
+    }
+    
+    if (currentLoad < 0.01) {
+        currentLoad = 0.0;
+    }
+}
+
+void EdgeServerApp::finish()
+{
+    EV_INFO << "EdgeServer " << serverId << " finished. Final load: " 
+            << (currentLoad / computeCapacity) * 100 << "%" << endl;
+}
+
+} // namespace lasp_ven_simple

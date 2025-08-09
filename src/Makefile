@@ -31,6 +31,7 @@ O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cc, .msg and .sm files
 OBJS = \
+    $O/lasp_ven_simple/EdgeServerApp.o \
     $O/lasp_ven_simple/LASPManager.o \
     $O/lasp_ven_simple/TestApp.o \
     $O/lasp_ven_simple/strategies/GreedyStrategy.o \
