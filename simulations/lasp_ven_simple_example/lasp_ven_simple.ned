@@ -49,9 +49,9 @@ network LaspVenSimpleSimulation
             @display("p=192,416");
         }
 
-        // LASP Manager (Edge Computing Infrastructure)
+        // LASP Manager (Regional Edge Computing Orchestrator)
         laspManager: StandardHost {            
-            @display("p=500,100;i=device/server");
+            @display("p=650,400;i=device/server");
             
             // Application configuration
             numApps = 1;
