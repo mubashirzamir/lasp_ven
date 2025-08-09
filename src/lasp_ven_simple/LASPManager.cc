@@ -5,6 +5,8 @@
 #include "inet/common/ModuleAccess.h"
 #include "inet/common/packet/Packet.h"
 #include "inet/applications/base/ApplicationPacket_m.h"
+#include "inet/common/TimeTag_m.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
 #include <cmath>
 #include <algorithm>
 #include <random>
@@ -205,6 +207,9 @@ void LASPManager::processServiceRequest(const ServiceRequest& request)
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
+        // NEW: Send deployment command to selected edge server
+        sendDeploymentCommand(*placement, request);
+        
         EV_INFO << "Service placed on server " << placement->serverId 
                 << " with latency " << placement->estimatedLatency << "ms" << endl;
     }
@@ -313,6 +318,29 @@ void LASPManager::removeServiceRequest(int requestId)
             [requestId](const ServicePlacement& placement) { return placement.serviceId == requestId; }),
         activePlacements.end()
     );
+}
+
+void LASPManager::sendDeploymentCommand(const ServicePlacement& placement, const ServiceRequest& request)
+{
+    // Create deployment command packet
+    auto packet = new Packet("ServiceDeployment");
+    auto payload = makeShared<ApplicationPacket>();
+    payload->setChunkLength(B(150)); // 150 bytes
+    payload->setSequenceNumber(request.vehicleId);
+    packet->insertAtBack(payload);
+    
+    // Add placement information as tags (in real implementation, would use proper message format)
+    packet->addTag<CreationTimeTag>()->setCreationTime(simTime());
+    
+    // Send to selected edge server  
+    std::string addressStr = "192.168.1." + std::to_string(200 + placement.serverId);
+    L3Address edgeServerAddress = L3AddressResolver().resolve(addressStr.c_str());
+    int edgeServerPort = 8000 + placement.serverId;
+    
+    socket.sendTo(packet, edgeServerAddress, edgeServerPort);
+    
+    EV_INFO << "LASPManager sent deployment command to EdgeServer " << placement.serverId 
+            << " for vehicle " << request.vehicleId << endl;
 }
 
 void LASPManager::finish()

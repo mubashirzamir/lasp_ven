@@ -34,6 +34,7 @@ OBJS = \
     $O/lasp_ven_simple/EdgeServerApp.o \
     $O/lasp_ven_simple/LASPManager.o \
     $O/lasp_ven_simple/TestApp.o \
+    $O/lasp_ven_simple/VehicleServiceApp.o \
     $O/lasp_ven_simple/strategies/GreedyStrategy.o \
     $O/lasp_ven_simple/strategies/ThresholdStrategy.o \
     $O/lasp_ven_simple/utils/ServicePlacementUtils.o \

@@ -118,6 +118,9 @@ protected:
     void scheduleEvaluationTimer();
     void handleEvaluationTimer();
     
+    // Edge server communication
+    void sendDeploymentCommand(const ServicePlacement& placement, const ServiceRequest& request);
+    
 public:
     LASPManager();
     virtual ~LASPManager();

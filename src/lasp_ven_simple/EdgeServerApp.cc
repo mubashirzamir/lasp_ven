@@ -5,6 +5,7 @@
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
+#include "inet/applications/base/ApplicationPacket_m.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -86,23 +87,18 @@ void EdgeServerApp::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
     emit(requestsReceived, 1);
     
-    // Extract service request (simplified - in real implementation would deserialize)
-    ServiceRequest request;
-    request.vehicleId = 1; // Simplified
-    request.serviceType = TRAFFIC_INFO; // Default
-    request.timestamp = simTime().dbl();
-    request.latitude = 50.0; // Default position
-    request.longitude = 50.0;
-    request.priority = 1;
-    request.deadline = simTime().dbl() + 10.0;
-    request.dataSize = 1.0; // 1 MB
-    
     // Get client address for response
     auto addressInd = packet->getTag<L3AddressInd>();
     L3Address clientAddr = addressInd->getSrcAddress();
-    int clientPort = 9999; // Default LASP manager port
     
-    processServiceRequest(request, clientAddr, clientPort);
+    // Check packet name to determine if it's a deployment command or direct service request
+    if (strcmp(packet->getName(), "ServiceDeployment") == 0) {
+        // This is a deployment command from LASPManager
+        handleDeploymentCommand(packet, clientAddr);
+    } else {
+        // This is a direct service request (shouldn't happen in our current flow)
+        handleDirectServiceRequest(packet, clientAddr);
+    }
     
     delete packet;
 }
@@ -180,6 +176,55 @@ void EdgeServerApp::updateLoad(double additionalLoad)
     if (currentLoad < 0.01) {
         currentLoad = 0.0;
     }
+}
+
+void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& laspManagerAddr)
+{
+    // Extract deployment information
+    auto payload = packet->peekData<ApplicationPacket>();
+    int vehicleId = payload->getSequenceNumber();
+    
+    EV_INFO << "EdgeServer " << serverId << " received deployment command for vehicle " << vehicleId << endl;
+    
+    // Simulate service processing time
+    double processingTime = uniform(0.01, 0.05); // 10-50ms processing time
+    
+    // Update server load
+    updateLoad(1.0); // Add some load for this service
+    
+    // Create service response
+    auto response = new Packet("ServiceResponse");
+    auto responsePayload = makeShared<ApplicationPacket>();
+    responsePayload->setChunkLength(B(300)); // 300 bytes response
+    responsePayload->setSequenceNumber(vehicleId);
+    response->insertAtBack(responsePayload);
+    
+    // Send response back to vehicle (simplified addressing)
+    std::string addressStr = "192.168.1." + std::to_string(10 + vehicleId);
+    L3Address vehicleAddr = L3AddressResolver().resolve(addressStr.c_str());
+    int vehiclePort = 5000; // Assume vehicles listen on port 5000
+    
+    // Schedule response after processing time
+    scheduleAt(simTime() + processingTime, new cMessage("sendResponse"));
+    
+    // For now, send immediately (in real implementation, would schedule)
+    socket.sendTo(response, vehicleAddr, vehiclePort);
+    
+    emit(requestsProcessed, 1);
+    emit(serverLoadSignal, (currentLoad / computeCapacity) * 100);
+    
+    EV_INFO << "EdgeServer " << serverId << " processed service for vehicle " << vehicleId 
+            << ", processing time: " << processingTime * 1000 << "ms" << endl;
+}
+
+void EdgeServerApp::handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr)
+{
+    // Handle direct service requests (for future use)
+    EV_INFO << "EdgeServer " << serverId << " received direct service request" << endl;
+    
+    // For now, just acknowledge
+    auto response = new Packet("DirectServiceResponse");
+    socket.sendTo(response, clientAddr, 5000);
 }
 
 void EdgeServerApp::finish()

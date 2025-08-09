@@ -51,6 +51,10 @@ protected:
     virtual void processServiceRequest(const ServiceRequest& request, const L3Address& clientAddr, int clientPort);
     virtual bool canHandleRequest(const ServiceRequest& request);
     virtual void updateLoad(double additionalLoad);
+    
+    // New deployment handling methods
+    virtual void handleDeploymentCommand(Packet* packet, const L3Address& laspManagerAddr);
+    virtual void handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr);
 
 public:
     EdgeServerApp() {}
