@@ -38,7 +38,7 @@ bool VehicleServiceApp::startApplication()
     
     // Setup service socket
     serviceSocket.setOutputGate(gate("socketOut"));
-    serviceSocket.bind(0); // Bind to any available port
+    serviceSocket.bind(5000); // Bind to port 5000 for EdgeServer responses
     serviceSocket.setCallback(this);
     
     // Resolve LASP Manager address
@@ -87,14 +87,15 @@ void VehicleServiceApp::sendServiceRequest()
     auto packet = new Packet("VehicleServiceRequest");
     auto payload = makeShared<ApplicationPacket>();
     payload->setChunkLength(B(200)); // 200 bytes
-    payload->setSequenceNumber(requestCounter);
+    payload->setSequenceNumber(getParentModule()->getIndex()); // Use vehicle index as ID
     packet->insertAtBack(payload);
     
     // Add request metadata (in real implementation, would use proper message format)
     packet->addTag<CreationTimeTag>()->setCreationTime(simTime());
     
-    // Track request for latency measurement
-    pendingRequests[requestCounter] = simTime();
+    // Track request for latency measurement  
+    int vehicleId = getParentModule()->getIndex();
+    pendingRequests[vehicleId] = simTime();
     
     // Send to LASP Manager
     serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);

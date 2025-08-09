@@ -168,20 +168,30 @@ void LASPManager::refreshDisplay() const
 
 void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
-    // Process incoming service requests
-    // For now, we'll create a simple service request
-    ServiceRequest request;
-    request.vehicleId = 1; // Default vehicle ID
-    request.serviceType = TRAFFIC_INFO; // Default service
-    request.timestamp = simTime().dbl();
-    request.latitude = 52.5200; // Default location
-    request.longitude = 13.4050;
-    request.priority = 1;
-    request.deadline = simTime().dbl() + 10.0; // 10 seconds deadline
-    request.dataSize = 1.0; // 1 MB
-    
-    emit(requestsReceived, 1);
-    processServiceRequest(request);
+    // Extract vehicle service request from packet
+    try {
+        auto payload = packet->peekData<ApplicationPacket>();
+        int vehicleId = payload->getSequenceNumber();
+        
+        // Create service request from received packet
+        ServiceRequest request;
+        request.vehicleId = vehicleId;
+        request.serviceType = TRAFFIC_INFO; // Could be extracted from packet in future
+        request.timestamp = simTime().dbl();
+        request.latitude = 52.5200; // Could be extracted from vehicle position
+        request.longitude = 13.4050;
+        request.priority = 1;
+        request.deadline = simTime().dbl() + 10.0; // 10 seconds deadline
+        request.dataSize = 1.0; // 1 MB
+        
+        EV_INFO << "LASPManager received service request from vehicle " << vehicleId << endl;
+        
+        emit(requestsReceived, 1);
+        processServiceRequest(request);
+        
+    } catch (const std::exception& e) {
+        EV_WARN << "Failed to parse service request packet: " << e.what() << endl;
+    }
     
     delete packet;
 }
