@@ -19,6 +19,7 @@ VehicleServiceApp::VehicleServiceApp()
     serviceRequestInterval = 10.0; // Default 10 seconds
     requestCounter = 0;
     maxRequests = 5; // Limit requests per vehicle
+    requestSize = 200; // Default 200 bytes
 }
 
 VehicleServiceApp::~VehicleServiceApp()
@@ -35,6 +36,11 @@ bool VehicleServiceApp::startApplication()
     serviceRequestsSent = registerSignal("serviceRequestsSent");
     serviceResponsesReceived = registerSignal("serviceResponsesReceived");
     serviceLatency = registerSignal("serviceLatency");
+    
+    // Get configurable parameters
+    requestSize = par("requestSize");
+    maxRequests = par("maxRequests");
+    serviceRequestInterval = par("serviceRequestInterval");
     
     // Setup service socket
     serviceSocket.setOutputGate(gate("socketOut"));
@@ -86,7 +92,7 @@ void VehicleServiceApp::sendServiceRequest()
     // Create service request packet
     auto packet = new Packet("VehicleServiceRequest");
     auto payload = makeShared<ApplicationPacket>();
-    payload->setChunkLength(B(200)); // 200 bytes
+    payload->setChunkLength(B(requestSize)); // Configurable request size
     payload->setSequenceNumber(getParentModule()->getIndex()); // Use vehicle index as ID
     packet->insertAtBack(payload);
     

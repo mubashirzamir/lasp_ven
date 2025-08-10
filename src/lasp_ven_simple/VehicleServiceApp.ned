@@ -11,6 +11,7 @@ simple VehicleServiceApp extends VeinsInetApplicationBase
         // Service request parameters
         double serviceRequestInterval @unit(s) = default(10s);
         int maxRequests = default(5);
+        int requestSize @unit(B) = default(200B);
         int laspManagerPort = default(9999);
         
         // Statistics

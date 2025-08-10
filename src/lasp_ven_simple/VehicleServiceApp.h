@@ -19,6 +19,7 @@ private:
     double serviceRequestInterval;
     int requestCounter;
     int maxRequests;
+    int requestSize; // Configurable request size in bytes
     
     // Statistics
     simsignal_t serviceRequestsSent;
