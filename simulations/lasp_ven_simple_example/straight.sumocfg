@@ -7,8 +7,7 @@
     </input>
     
     <output>
-        <fcd-output value="straight.fcd.xml"/>
-        <fcd-output.geo value="true"/>
+        
     </output>
     
     <time>

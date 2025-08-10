@@ -6,5 +6,5 @@ SUMO Launch Configuration for LASP VEN Simulation
     <copy file="straight.sumocfg" type="config" />
     <copy file="straight.net.xml" type="data" />
     <copy file="straight.rou.xml" type="data" />
-    <copy file="trips.trips.xml" type="data" />
+
 </launch>

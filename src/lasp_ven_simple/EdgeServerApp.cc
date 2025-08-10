@@ -1,8 +1,6 @@
 #include "EdgeServerApp.h"
 #include "inet/common/ModuleAccess.h"
-#include "inet/common/TagBase_m.h"
 #include "inet/common/TimeTag_m.h"
-#include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/applications/base/ApplicationPacket_m.h"

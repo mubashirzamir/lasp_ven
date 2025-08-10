@@ -6,7 +6,6 @@ import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
 import inet.physicallayer.ieee80211.packetlevel.Ieee80211ScalarRadioMedium;
 import inet.node.inet.StandardHost;
 import lasp_ven.lasp_ven_simple.LASPManager;
-import lasp_ven.lasp_ven_simple.TestApp;
 import lasp_ven.lasp_ven_simple.EdgeServerApp;
 import lasp_ven.lasp_ven_simple.VehicleServiceApp;
 import inet.visualizer.integrated.IntegratedVisualizer;
@@ -59,17 +58,9 @@ network LaspVenSimpleSimulation
             app[0].typename = "lasp_ven.lasp_ven_simple.LASPManager";
         }
 
-        // Test Application (for testing LASP Manager)
-        testApp: StandardHost {
-            @display("p=500,200;i=device/laptop");
 
-            // Application configuration
-            numApps = 1;
-            app[0].typename = "lasp_ven.lasp_ven_simple.TestApp";
-        }
 
-        // Physical Edge Servers for visualization and packet communication
-        // (These serve as both communication infrastructure and compute nodes)
+        // Physical Edge Servers
         edgeServer[numEdgeServers]: StandardHost {
             @display("p=162.648,339.352;i=device/server2");  // Add position
             numApps = 1;
