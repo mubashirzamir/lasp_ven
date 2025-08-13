@@ -57,7 +57,7 @@ protected:
     virtual void handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr);
 
 public:
-    EdgeServerApp() {}
+    EdgeServerApp();
     virtual ~EdgeServerApp() {}
     
     // Public interface for LASPManager

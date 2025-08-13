@@ -22,6 +22,7 @@ LASPManager::LASPManager()
 {
     localPort = 9999; // Default port
     evaluationTimer = nullptr;
+    EV_WARN << "=== LASP MANAGER CONSTRUCTOR CALLED ===" << endl;
 }
 
 LASPManager::~LASPManager()
@@ -33,6 +34,9 @@ LASPManager::~LASPManager()
 
 void LASPManager::initialize(int stage)
 {
+    EV_WARN << "=== LASP MANAGER INITIALIZING ===" << endl;
+    EV_WARN << "Stage: " << stage << endl;
+    
     ApplicationBase::initialize(stage);
     
     if (stage == inet::INITSTAGE_LOCAL) {
@@ -43,18 +47,36 @@ void LASPManager::initialize(int stage)
         numEdgeServers = par("numEdgeServers").intValue();
         localPort = par("localPort").intValue();
         
+        EV_WARN << "LASPManager parameters loaded:" << endl;
+        EV_WARN << "  strategy: " << currentStrategy << endl;
+        EV_WARN << "  evaluationInterval: " << evaluationInterval << endl;
+        EV_WARN << "  loadThreshold: " << loadThreshold << endl;
+        EV_WARN << "  numEdgeServers: " << numEdgeServers << endl;
+        EV_WARN << "  localPort: " << localPort << endl;
+        
         // Initialize statistics
         requestsReceived = registerSignal("requestsReceived");
         requestsServed = registerSignal("requestsServed");
         averageLatency = registerSignal("averageLatency");
         serverUtilization = registerSignal("serverUtilization");
         
-        EV_INFO << "LASPManager initialized with strategy: " << currentStrategy << endl;
+            EV_WARN << "Statistics signals registered successfully" << endl;
+    EV_WARN << "=== LASP MANAGER INITIALIZED ===" << endl;
+    
+    // Force start if not started by lifecycle manager
+    if (stage == 12) {  // Use stage 12 since INITSTAGE_LAST might not be reached
+        EV_WARN << "=== FORCING LASP MANAGER START ===" << endl;
+        // Schedule start for next event to ensure network stack is ready
+        scheduleAt(simTime() + 0.1, new cMessage("startLASPManager"));
+    }
     }
 }
 
 void LASPManager::initializeEdgeServers()
 {
+    EV_WARN << "=== INITIALIZING EDGE SERVERS ===" << endl;
+    EV_WARN << "Creating " << numEdgeServers << " edge servers" << endl;
+    
     // Create edge servers at strategic locations within road network (0-100m)
     for (int i = 0; i < numEdgeServers; i++) {
         EdgeServer server;
@@ -84,14 +106,21 @@ void LASPManager::initializeEdgeServers()
         server.supportedServices = {TRAFFIC_INFO, EMERGENCY_ALERT, INFOTAINMENT, NAVIGATION};
         
         edgeServers[i] = server;
-        EV_INFO << "Edge server " << i << " initialized at (" 
+        EV_WARN << "Edge server " << i << " initialized at (" 
                 << server.latitude << ", " << server.longitude << ") meters in road network" << endl;
     }
+    
+    EV_WARN << "=== EDGE SERVERS INITIALIZED ===" << endl;
 }
 
 void LASPManager::handleMessage(cMessage *msg)
 {
-    if (msg == evaluationTimer) {
+    if (msg->isName("startLASPManager")) {
+        delete msg;
+        EV_WARN << "=== STARTING LASP MANAGER FROM SCHEDULED MESSAGE ===" << endl;
+        handleStartOperation(nullptr);
+    }
+    else if (msg == evaluationTimer) {
         handleEvaluationTimer();
     }
     else {
@@ -101,13 +130,28 @@ void LASPManager::handleMessage(cMessage *msg)
 
 void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
 {
+    EV_WARN << "=== LASP MANAGER STARTING ===" << endl;
+    EV_WARN << "LASPManager handleStartOperation called" << endl;
+    
     // Application is starting
-    EV_INFO << "LASPManager starting..." << endl;
+    EV_WARN << "LASPManager starting..." << endl;
     
     // Setup UDP socket
     socket.setOutputGate(gate("socketOut"));
     socket.bind(localPort);
     socket.setCallback(this);
+    
+    EV_WARN << "LASPManager socket setup complete on port " << localPort << endl;
+    
+    // Debug: Check our actual IP address
+    auto interface = getModuleByPath("^.wlan");
+    if (interface) {
+        auto ipv4 = interface->getSubmodule("ipv4");
+        if (ipv4) {
+            std::string address = ipv4->par("address").stdstringValue();
+            EV_WARN << "LASPManager actual IP address: " << address << endl;
+        }
+    }
     
     // Initialize edge servers
     initializeEdgeServers();
@@ -116,7 +160,8 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     evaluationTimer = new cMessage("evaluationTimer");
     scheduleAt(simTime() + evaluationInterval, evaluationTimer);
     
-    EV_INFO << "LASPManager started. Listening on port " << localPort << endl;
+    EV_WARN << "Evaluation timer scheduled for " << evaluationInterval << "s" << endl;
+    EV_WARN << "=== LASP MANAGER STARTED SUCCESSFULLY ===" << endl;
 }
 
 void LASPManager::handleStopOperation(inet::LifecycleOperation* operation)
@@ -168,10 +213,15 @@ void LASPManager::refreshDisplay() const
 
 void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
+    EV_WARN << "=== LASP MANAGER RECEIVED PACKET ===" << endl;
+    EV_WARN << "Packet received at time: " << simTime() << endl;
+    
     // Extract vehicle service request from packet
     try {
         auto payload = packet->peekData<ApplicationPacket>();
         int vehicleId = payload->getSequenceNumber();
+        
+        EV_WARN << "Successfully parsed packet, vehicle ID: " << vehicleId << endl;
         
         // Create service request from received packet
         ServiceRequest request;
@@ -184,13 +234,17 @@ void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
         request.deadline = simTime().dbl() + 10.0; // 10 seconds deadline
         request.dataSize = 1.0; // 1 MB
         
-        EV_INFO << "LASPManager received service request from vehicle " << vehicleId << endl;
+        EV_WARN << "Created service request for vehicle " << vehicleId << endl;
+        EV_WARN << "Calling processServiceRequest()" << endl;
         
         emit(requestsReceived, 1);
         processServiceRequest(request);
         
+        EV_WARN << "=== PACKET PROCESSED SUCCESSFULLY ===" << endl;
+        
     } catch (const std::exception& e) {
         EV_WARN << "Failed to parse service request packet: " << e.what() << endl;
+        EV_WARN << "=== PACKET PROCESSING FAILED ===" << endl;
     }
     
     delete packet;
@@ -209,22 +263,27 @@ void LASPManager::socketClosed(UdpSocket *socket)
 
 void LASPManager::processServiceRequest(const ServiceRequest& request)
 {
-    EV_INFO << "Processing service request from vehicle " << request.vehicleId << endl;
+    EV_WARN << "=== PROCESSING SERVICE REQUEST ===" << endl;
+    EV_WARN << "Processing service request from vehicle " << request.vehicleId << endl;
     
     ServicePlacement* placement = findBestPlacement(request);
     if (placement) {
+        EV_WARN << "Found placement on server " << placement->serverId << endl;
+        EV_WARN << "Estimated latency: " << placement->estimatedLatency << "ms" << endl;
+        
         activePlacements.push_back(*placement);
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
         // NEW: Send deployment command to selected edge server
+        EV_WARN << "Calling sendDeploymentCommand()" << endl;
         sendDeploymentCommand(*placement, request);
         
-        EV_INFO << "Service placed on server " << placement->serverId 
-                << " with latency " << placement->estimatedLatency << "ms" << endl;
+        EV_WARN << "=== SERVICE REQUEST PROCESSED SUCCESSFULLY ===" << endl;
     }
     else {
         EV_WARN << "No suitable server found for request from vehicle " << request.vehicleId << endl;
+        EV_WARN << "=== SERVICE REQUEST PROCESSING FAILED ===" << endl;
     }
 }
 
@@ -332,6 +391,10 @@ void LASPManager::removeServiceRequest(int requestId)
 
 void LASPManager::sendDeploymentCommand(const ServicePlacement& placement, const ServiceRequest& request)
 {
+    EV_WARN << "=== SENDING DEPLOYMENT COMMAND ===" << endl;
+    EV_WARN << "Sending deployment command to EdgeServer " << placement.serverId 
+            << " for vehicle " << request.vehicleId << endl;
+    
     // Create deployment command packet
     auto packet = new Packet("ServiceDeployment");
     auto payload = makeShared<ApplicationPacket>();
@@ -347,10 +410,12 @@ void LASPManager::sendDeploymentCommand(const ServicePlacement& placement, const
     L3Address edgeServerAddress = L3AddressResolver().resolve(addressStr.c_str());
     int edgeServerPort = 8000 + placement.serverId;
     
+    EV_WARN << "EdgeServer address: " << edgeServerAddress.str() << ":" << edgeServerPort << endl;
+    
     socket.sendTo(packet, edgeServerAddress, edgeServerPort);
     
-    EV_INFO << "LASPManager sent deployment command to EdgeServer " << placement.serverId 
-            << " for vehicle " << request.vehicleId << endl;
+    EV_WARN << "Deployment command sent successfully" << endl;
+    EV_WARN << "=== DEPLOYMENT COMMAND SENT ===" << endl;
 }
 
 void LASPManager::finish()

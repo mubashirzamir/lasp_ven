@@ -8,6 +8,7 @@ import inet.node.inet.StandardHost;
 import lasp_ven.lasp_ven_simple.LASPManager;
 import lasp_ven.lasp_ven_simple.EdgeServerApp;
 import lasp_ven.lasp_ven_simple.VehicleServiceApp;
+import inet.transportlayer.udp.Udp;
 import inet.visualizer.integrated.IntegratedVisualizer;
 import inet.environment.common.PhysicalEnvironment;
 import org.car2x.veins.visualizer.roads.RoadsCanvasVisualizer;
@@ -16,8 +17,8 @@ import org.car2x.veins.visualizer.roads.RoadsOsgVisualizer;
 network LaspVenSimpleSimulation
 {
     parameters:
-        double playgroundSizeX @unit(m) = default(2500m);
-        double playgroundSizeY @unit(m) = default(2500m);
+        double playgroundSizeX @unit(m) = default(200m);
+        double playgroundSizeY @unit(m) = default(200m);
         double playgroundSizeZ @unit(m) = default(50m);
         bool useOsg = default(false);
         int numEdgeServers = default(3);
@@ -51,11 +52,20 @@ network LaspVenSimpleSimulation
 
         // LASP Manager (Regional Edge Computing Orchestrator)
         laspManager: StandardHost {
-            @display("p=650,400;i=device/server");
+            @display("p=100,100;i=device/server");
 
             // Application configuration
             numApps = 1;
             app[0].typename = "lasp_ven.lasp_ven_simple.LASPManager";
+            
+            // Network stack configuration
+            numWlanInterfaces = 1;
+            wlan[0].typename = "Ieee80211Interface";
+            wlan[0].ipv4.typename = "Ipv4InterfaceData";
+            wlan[0].ipv4.address = "192.168.1.100";
+            wlan[0].ipv4.netmask = "255.255.255.0";
+            
+
         }
 
 

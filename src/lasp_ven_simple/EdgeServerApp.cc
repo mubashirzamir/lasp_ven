@@ -12,8 +12,16 @@ namespace lasp_ven_simple {
 
 Define_Module(EdgeServerApp);
 
+EdgeServerApp::EdgeServerApp()
+{
+    EV_WARN << "EdgeServerApp constructor called" << endl;
+}
+
 void EdgeServerApp::initialize(int stage)
 {
+    EV_WARN << "=== EDGE SERVER APP INITIALIZING ===" << endl;
+    EV_WARN << "Stage: " << stage << endl;
+    
     ApplicationBase::initialize(stage);
     
     if (stage == INITSTAGE_LOCAL) {
@@ -24,6 +32,12 @@ void EdgeServerApp::initialize(int stage)
         localPort = par("localPort");
         currentLoad = 0.0;
         
+        EV_WARN << "EdgeServerApp parameters loaded:" << endl;
+        EV_WARN << "  serverId: " << serverId << endl;
+        EV_WARN << "  computeCapacity: " << computeCapacity << endl;
+        EV_WARN << "  storageCapacity: " << storageCapacity << endl;
+        EV_WARN << "  localPort: " << localPort << endl;
+        
         // Initialize supported services (all services for simplicity)
         supportedServices = {TRAFFIC_INFO, EMERGENCY_ALERT, INFOTAINMENT, NAVIGATION};
         
@@ -32,19 +46,24 @@ void EdgeServerApp::initialize(int stage)
         requestsProcessed = registerSignal("requestsProcessed");
         serverLoadSignal = registerSignal("serverLoad");
         
-        EV_INFO << "EdgeServerApp " << serverId << " initialized with capacity " 
-                << computeCapacity << " GFLOPS" << endl;
+        EV_WARN << "Statistics signals registered successfully" << endl;
+        EV_WARN << "=== EDGE SERVER APP INITIALIZED ===" << endl;
     }
 }
 
 void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
 {
+    EV_WARN << "=== EDGE SERVER STARTING ===" << endl;
+    EV_WARN << "EdgeServer " << serverId << " handleStartOperation called" << endl;
+    EV_WARN << "EdgeServer " << serverId << " starting on port " << localPort << endl;
+    
     // Setup UDP socket
     socket.setOutputGate(gate("socketOut"));
     socket.bind(localPort);
     socket.setCallback(this);
     
-    EV_INFO << "EdgeServer " << serverId << " started on port " << localPort << endl;
+    EV_WARN << "EdgeServer " << serverId << " socket setup complete" << endl;
+    EV_WARN << "=== EDGE SERVER STARTED ===" << endl;
 }
 
 void EdgeServerApp::handleStopOperation(inet::LifecycleOperation* operation)
@@ -83,17 +102,25 @@ void EdgeServerApp::refreshDisplay() const
 
 void EdgeServerApp::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
+    EV_WARN << "=== EDGE SERVER RECEIVED PACKET ===" << endl;
+    EV_WARN << "EdgeServer " << serverId << " received packet: " << packet->getName() << endl;
+    EV_WARN << "Packet received at time: " << simTime() << endl;
+    
     emit(requestsReceived, 1);
     
     // Get client address for response
     auto addressInd = packet->getTag<L3AddressInd>();
     L3Address clientAddr = addressInd->getSrcAddress();
     
+    EV_WARN << "Client address: " << clientAddr.str() << endl;
+    
     // Check packet name to determine if it's a deployment command or direct service request
     if (strcmp(packet->getName(), "ServiceDeployment") == 0) {
+        EV_WARN << "Processing deployment command from LASPManager" << endl;
         // This is a deployment command from LASPManager
         handleDeploymentCommand(packet, clientAddr);
     } else {
+        EV_WARN << "Processing direct service request" << endl;
         // This is a direct service request (shouldn't happen in our current flow)
         handleDirectServiceRequest(packet, clientAddr);
     }
@@ -178,14 +205,18 @@ void EdgeServerApp::updateLoad(double additionalLoad)
 
 void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& laspManagerAddr)
 {
+    EV_WARN << "=== EDGE SERVER PROCESSING DEPLOYMENT COMMAND ===" << endl;
+    
     // Extract deployment information
     auto payload = packet->peekData<ApplicationPacket>();
     int vehicleId = payload->getSequenceNumber();
     
-    EV_INFO << "EdgeServer " << serverId << " received deployment command for vehicle " << vehicleId << endl;
+    EV_WARN << "EdgeServer " << serverId << " received deployment command for vehicle " << vehicleId << endl;
     
     // Simulate service processing time
     double processingTime = uniform(0.01, 0.05); // 10-50ms processing time
+    
+    EV_WARN << "Processing time: " << processingTime * 1000 << "ms" << endl;
     
     // Update server load
     updateLoad(1.0); // Add some load for this service
@@ -202,6 +233,8 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
     L3Address vehicleAddr = L3AddressResolver().resolve(addressStr.c_str());
     int vehiclePort = 5000; // Assume vehicles listen on port 5000
     
+    EV_WARN << "Sending response to vehicle at " << vehicleAddr.str() << ":" << vehiclePort << endl;
+    
     // Schedule response after processing time
     scheduleAt(simTime() + processingTime, new cMessage("sendResponse"));
     
@@ -211,8 +244,9 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
     emit(requestsProcessed, 1);
     emit(serverLoadSignal, (currentLoad / computeCapacity) * 100);
     
-    EV_INFO << "EdgeServer " << serverId << " processed service for vehicle " << vehicleId 
-            << ", processing time: " << processingTime * 1000 << "ms" << endl;
+    EV_WARN << "EdgeServer " << serverId << " processed service for vehicle " << vehicleId 
+            << ", current load: " << (currentLoad / computeCapacity) * 100 << "%" << endl;
+    EV_WARN << "=== DEPLOYMENT COMMAND PROCESSED SUCCESSFULLY ===" << endl;
 }
 
 void EdgeServerApp::handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr)

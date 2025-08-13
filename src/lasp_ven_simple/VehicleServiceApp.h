@@ -32,6 +32,7 @@ private:
 protected:
     virtual bool startApplication() override;
     virtual bool stopApplication() override;
+    virtual void processPacket(std::shared_ptr<inet::Packet> pk) override;
     
     // UdpSocket::ICallback interface (inherited from VeinsInetApplicationBase)
     virtual void socketDataArrived(UdpSocket *socket, Packet *packet) override;

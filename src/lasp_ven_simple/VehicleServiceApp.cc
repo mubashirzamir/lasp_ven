@@ -29,33 +29,60 @@ VehicleServiceApp::~VehicleServiceApp()
 
 bool VehicleServiceApp::startApplication()
 {
-    // Call parent to maintain existing Veins functionality
-    bool result = VeinsInetSampleApplication::startApplication();
+    EV_WARN << "=== VEHICLE SERVICE APP STARTING ===" << endl;
+    EV_WARN << "Vehicle index: " << getParentModule()->getIndex() << endl;
+    
+    // Don't call parent's startApplication() to avoid accident simulation
+    // Instead, call the grandparent (VeinsInetApplicationBase) directly
+    bool result = VeinsInetApplicationBase::startApplication();
+    
+    EV_WARN << "Parent startApplication() result: " << result << endl;
     
     // Initialize service request functionality
     serviceRequestsSent = registerSignal("serviceRequestsSent");
     serviceResponsesReceived = registerSignal("serviceResponsesReceived");
     serviceLatency = registerSignal("serviceLatency");
     
+    EV_WARN << "Signals registered successfully" << endl;
+    
     // Get configurable parameters
     requestSize = par("requestSize");
     maxRequests = par("maxRequests");
     serviceRequestInterval = par("serviceRequestInterval");
+    
+    EV_WARN << "Parameters loaded - requestSize: " << requestSize 
+            << ", maxRequests: " << maxRequests 
+            << ", serviceRequestInterval: " << serviceRequestInterval << endl;
     
     // Setup service socket
     serviceSocket.setOutputGate(gate("socketOut"));
     serviceSocket.bind(5000); // Bind to port 5000 for EdgeServer responses
     serviceSocket.setCallback(this);
     
+    EV_WARN << "Service socket setup complete" << endl;
+    
     // Resolve LASP Manager address
     laspManagerAddress = L3AddressResolver().resolve("192.168.1.100");
+    
+    EV_WARN << "LASP Manager address resolved: " << laspManagerAddress.str() << endl;
     
     // Schedule first service request using Veins timer system
     scheduleNextServiceRequest();
     
-    EV_INFO << "VehicleServiceApp started for vehicle " << getParentModule()->getIndex() << endl;
+    EV_WARN << "=== VEHICLE SERVICE APP STARTED SUCCESSFULLY ===" << endl;
     
     return result;
+}
+
+void VehicleServiceApp::processPacket(std::shared_ptr<inet::Packet> pk)
+{
+    // Ignore accident messages and other VeinsInetSampleApplication packets
+    // Our vehicles should only process service response packets via socketDataArrived
+    EV_INFO << "Vehicle " << getParentModule()->getIndex() 
+            << " ignoring VeinsInetSampleApplication packet for VEN testing" << endl;
+    
+    // Delete the packet without processing
+    delete pk.get();
 }
 
 bool VehicleServiceApp::stopApplication()
@@ -68,24 +95,40 @@ bool VehicleServiceApp::stopApplication()
 
 void VehicleServiceApp::scheduleNextServiceRequest()
 {
+    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+            << " scheduleNextServiceRequest() called, requestCounter: " << requestCounter 
+            << ", maxRequests: " << maxRequests << endl;
+    
     if (requestCounter < maxRequests) {
         // Use Veins timer system instead of OMNeT++ timers
         auto callback = [this]() {
+            EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+                    << " timer callback triggered, calling sendServiceRequest()" << endl;
             sendServiceRequest();
             scheduleNextServiceRequest(); // Schedule next one
         };
         
-        double delay = uniform(1.0, 5.0) + serviceRequestInterval;
+        double delay = uniform(1.0, 3.0) + 5.0; // Reduced delay for testing
         timerManager.create(veins::TimerSpecification(callback).oneshotIn(SimTime(delay, SIMTIME_S)));
         
-        EV_INFO << "Vehicle " << getParentModule()->getIndex() 
+        EV_WARN << "Vehicle " << getParentModule()->getIndex() 
                 << " scheduled next service request in " << delay << "s" << endl;
+    } else {
+        EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+                << " max requests reached, not scheduling more" << endl;
     }
 }
 
 void VehicleServiceApp::sendServiceRequest()
 {
+    EV_WARN << "=== VEHICLE SENDING SERVICE REQUEST ===" << endl;
+    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+            << " sendServiceRequest() called, requestCounter: " << requestCounter 
+            << ", maxRequests: " << maxRequests << endl;
+    
     if (requestCounter >= maxRequests) {
+        EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+                << " max requests reached, not sending" << endl;
         return;
     }
     
@@ -103,6 +146,10 @@ void VehicleServiceApp::sendServiceRequest()
     int vehicleId = getParentModule()->getIndex();
     pendingRequests[vehicleId] = simTime();
     
+    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+            << " sending packet to LASP Manager at " << laspManagerAddress.str() 
+            << ":" << laspManagerPort << endl;
+    
     // Send to LASP Manager
     serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
     
@@ -110,9 +157,10 @@ void VehicleServiceApp::sendServiceRequest()
     requestCounter++;
     
     ServiceType service = selectServiceBasedOnContext();
-    EV_INFO << "Vehicle " << getParentModule()->getIndex() 
+    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
             << " sent service request " << requestCounter 
             << " for service type " << service << endl;
+    EV_WARN << "=== SERVICE REQUEST SENT SUCCESSFULLY ===" << endl;
 }
 
 ServiceType VehicleServiceApp::selectServiceBasedOnContext()
