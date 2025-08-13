@@ -63,12 +63,8 @@ void LASPManager::initialize(int stage)
             EV_WARN << "Statistics signals registered successfully" << endl;
     EV_WARN << "=== LASP MANAGER INITIALIZED ===" << endl;
     
-    // Force start if not started by lifecycle manager
-    if (stage == 12) {  // Use stage 12 since INITSTAGE_LAST might not be reached
-        EV_WARN << "=== FORCING LASP MANAGER START ===" << endl;
-        // Schedule start for next event to ensure network stack is ready
-        scheduleAt(simTime() + 0.1, new cMessage("startLASPManager"));
-    }
+    // LASPManager is now starting properly via normal lifecycle
+    // No need for forced start anymore
     }
 }
 
@@ -115,12 +111,7 @@ void LASPManager::initializeEdgeServers()
 
 void LASPManager::handleMessage(cMessage *msg)
 {
-    if (msg->isName("startLASPManager")) {
-        delete msg;
-        EV_WARN << "=== STARTING LASP MANAGER FROM SCHEDULED MESSAGE ===" << endl;
-        handleStartOperation(nullptr);
-    }
-    else if (msg == evaluationTimer) {
+    if (msg == evaluationTimer) {
         handleEvaluationTimer();
     }
     else {
@@ -142,6 +133,16 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     socket.setCallback(this);
     
     EV_WARN << "LASPManager socket setup complete on port " << localPort << endl;
+    
+    // Debug: Check our actual IP address
+    auto interface = getModuleByPath("^.wlan");
+    if (interface) {
+        auto ipv4 = interface->getSubmodule("ipv4");
+        if (ipv4) {
+            std::string address = ipv4->par("address").stdstringValue();
+            EV_WARN << "LASPManager actual IP address: " << address << endl;
+        }
+    }
     
     // Debug: Check our actual IP address
     auto interface = getModuleByPath("^.wlan");

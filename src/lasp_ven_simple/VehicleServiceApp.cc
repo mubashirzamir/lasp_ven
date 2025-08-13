@@ -15,7 +15,7 @@ Define_Module(VehicleServiceApp);
 
 VehicleServiceApp::VehicleServiceApp()
 {
-    laspManagerPort = 9999;
+    laspManagerPort = 15000; // Use port 15000 to avoid conflicts
     serviceRequestInterval = 10.0; // Default 10 seconds
     requestCounter = 0;
     maxRequests = 5; // Limit requests per vehicle

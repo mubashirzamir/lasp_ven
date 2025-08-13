@@ -65,7 +65,9 @@ network LaspVenSimpleSimulation
             wlan[0].ipv4.address = "192.168.1.100";
             wlan[0].ipv4.netmask = "255.255.255.0";
             
-
+            // Ensure proper network initialization
+            hasIpv4 = true;
+            hasUdp = true;
         }
 
 
