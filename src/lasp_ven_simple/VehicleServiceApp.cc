@@ -4,6 +4,10 @@
 #include "inet/applications/base/ApplicationPacket_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/TimeTag_m.h"
+#include "inet/networklayer/contract/IInterfaceTable.h"
+#include "inet/networklayer/ipv4/Ipv4InterfaceData.h"
+#include "inet/networklayer/common/L3Address.h"
+#include "inet/networklayer/contract/IRoutingTable.h"
 #include <random>
 
 using namespace omnetpp;
@@ -54,20 +58,71 @@ bool VehicleServiceApp::startApplication()
             << ", maxRequests: " << maxRequests 
             << ", serviceRequestInterval: " << serviceRequestInterval << endl;
     
-    // Setup service socket
+    // Setup service socket (but don't bind yet - wait for IP assignment)
     serviceSocket.setOutputGate(gate("socketOut"));
-    serviceSocket.bind(5000); // Bind to port 5000 for EdgeServer responses
     serviceSocket.setCallback(this);
     
-    EV_WARN << "Service socket setup complete" << endl;
+    EV_WARN << "Service socket setup complete (binding delayed until first request)" << endl;
+    
+    // Assign IP address to vehicle programmatically
+    int vehicleId = getParentModule()->getIndex();
+    std::string vehicleIP = "192.168.1." + std::to_string(10 + vehicleId);
+    
+    EV_WARN << "=== VEHICLE " << vehicleId << " IP ASSIGNMENT ATTEMPT ===" << endl;
+    EV_WARN << "Attempting to assign IP: " << vehicleIP << endl;
+    
+    // Get the interface table and find the wlan interface
+    auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+    if (interfaceTable) {
+        EV_WARN << "Vehicle " << vehicleId << " found interface table with " << interfaceTable->getNumInterfaces() << " interfaces" << endl;
+        
+        bool ipAssigned = false;
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
+            auto interface = interfaceTable->getInterface(i);
+            if (interface) {
+                EV_WARN << "Vehicle " << vehicleId << " checking interface " << i << ": " << interface->getInterfaceName() << endl;
+                
+                if (strstr(interface->getInterfaceName(), "wlan") != nullptr) {
+                    EV_WARN << "Vehicle " << vehicleId << " found wlan interface: " << interface->getInterfaceName() << endl;
+                    
+                                           auto ipv4Data = interface->getProtocolData<Ipv4InterfaceData>();
+                       if (ipv4Data) {
+                           EV_WARN << "Vehicle " << vehicleId << " current IP before assignment: " << ipv4Data->getIPAddress().str() << endl;
+                           
+                           L3Address ipAddr(vehicleIP.c_str());
+                           L3Address netmaskAddr("255.255.255.0");
+                           ipv4Data->setIPAddress(ipAddr.toIpv4());
+                           ipv4Data->setNetmask(netmaskAddr.toIpv4());
+                           
+                           EV_WARN << "✓ Vehicle " << vehicleId << " IP successfully assigned: " << vehicleIP << " to interface " << interface->getInterfaceName() << endl;
+                           EV_WARN << "Vehicle " << vehicleId << " IP after assignment: " << ipv4Data->getIPAddress().str() << endl;
+                           EV_WARN << "Vehicle " << vehicleId << " Netmask after assignment: " << ipv4Data->getNetmask().str() << endl;
+                           ipAssigned = true;
+                           break;
+                    } else {
+                        EV_WARN << "✗ Vehicle " << vehicleId << " failed to get IPv4 interface data for " << interface->getInterfaceName() << endl;
+                    }
+                }
+            }
+        }
+        
+        if (!ipAssigned) {
+            EV_WARN << "✗ Vehicle " << vehicleId << " no suitable wlan interface found for IP assignment" << endl;
+        }
+    } else {
+        EV_WARN << "✗ Vehicle " << vehicleId << " failed to get interface table" << endl;
+    }
+    
+    EV_WARN << "=== VEHICLE " << vehicleId << " IP ASSIGNMENT COMPLETE ===" << endl;
+    
+    // Add a small delay to ensure IP assignment propagates through network stack
+    EV_WARN << "Vehicle " << vehicleId << " waiting 0.1s for IP assignment to propagate..." << endl;
+    scheduleAt(simTime() + 0.1, new cMessage("ipPropagationDelay"));
     
     // Resolve LASP Manager address
     laspManagerAddress = L3AddressResolver().resolve("192.168.1.100");
     
     EV_WARN << "LASP Manager address resolved: " << laspManagerAddress.str() << endl;
-    
-    // Schedule first service request using Veins timer system
-    scheduleNextServiceRequest();
     
     EV_WARN << "=== VEHICLE SERVICE APP STARTED SUCCESSFULLY ===" << endl;
     
@@ -121,34 +176,72 @@ void VehicleServiceApp::scheduleNextServiceRequest()
 
 void VehicleServiceApp::sendServiceRequest()
 {
-    EV_WARN << "=== VEHICLE SENDING SERVICE REQUEST ===" << endl;
-    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
-            << " sendServiceRequest() called, requestCounter: " << requestCounter 
-            << ", maxRequests: " << maxRequests << endl;
+    int vehicleId = getParentModule()->getIndex();
+    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Sending service request #" << (requestCounter + 1) << endl;
     
     if (requestCounter >= maxRequests) {
-        EV_WARN << "Vehicle " << getParentModule()->getIndex() 
-                << " max requests reached, not sending" << endl;
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Max requests reached, not sending" << endl;
         return;
+    }
+    
+    // Bind socket on first request (after IP assignment is complete)
+    if (requestCounter == 0) {
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: About to bind socket to port 5000" << endl;
+        
+        // Check current interface state before binding
+        auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+        if (interfaceTable) {
+            for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
+                auto interface = interfaceTable->getInterface(i);
+                if (interface && strstr(interface->getInterfaceName(), "wlan") != nullptr) {
+                    auto ipv4Data = interface->getProtocolData<Ipv4InterfaceData>();
+                    if (ipv4Data) {
+                        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Interface " << interface->getInterfaceName() 
+                                << " has IP: " << ipv4Data->getIPAddress().str() << endl;
+                    }
+                }
+            }
+        }
+        
+        serviceSocket.bind(5000);
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Socket bound to port 5000" << endl;
+        
+        // Try to bind to specific IP address instead of just port
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Attempting to bind socket to specific IP 192.168.1.10:5000" << endl;
+        serviceSocket.close(); // Close the previous binding
+        serviceSocket.bind(L3Address("192.168.1.10"), 5000);
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Socket rebound to 192.168.1.10:5000" << endl;
+        
+        // Debug: Check routing table
+        auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+        if (routingTable) {
+            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
+            for (int i = 0; i < routingTable->getNumRoutes(); i++) {
+                auto route = routingTable->getRoute(i);
+                if (route) {
+                    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Route " << i << ": " 
+                            << route->getDestinationAsGeneric().str() << " -> " << route->getGatewayAsGeneric().str() << endl;
+                }
+            }
+        } else {
+            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: No routing table found" << endl;
+        }
     }
     
     // Create service request packet
     auto packet = new Packet("VehicleServiceRequest");
     auto payload = makeShared<ApplicationPacket>();
-    payload->setChunkLength(B(requestSize)); // Configurable request size
-    payload->setSequenceNumber(getParentModule()->getIndex()); // Use vehicle index as ID
+    payload->setChunkLength(B(requestSize));
+    payload->setSequenceNumber(vehicleId); // Use vehicle index as ID
     packet->insertAtBack(payload);
     
-    // Add request metadata (in real implementation, would use proper message format)
+    // Add request metadata
     packet->addTag<CreationTimeTag>()->setCreationTime(simTime());
     
     // Track request for latency measurement  
-    int vehicleId = getParentModule()->getIndex();
     pendingRequests[vehicleId] = simTime();
     
-    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
-            << " sending packet to LASP Manager at " << laspManagerAddress.str() 
-            << ":" << laspManagerPort << endl;
+    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Packet created, sending to " << laspManagerAddress.str() << ":" << laspManagerPort << endl;
     
     // Send to LASP Manager
     serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
@@ -157,10 +250,7 @@ void VehicleServiceApp::sendServiceRequest()
     requestCounter++;
     
     ServiceType service = selectServiceBasedOnContext();
-    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
-            << " sent service request " << requestCounter 
-            << " for service type " << service << endl;
-    EV_WARN << "=== SERVICE REQUEST SENT SUCCESSFULLY ===" << endl;
+    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: ✓ Request #" << requestCounter << " sent (service type " << service << ")" << endl;
 }
 
 ServiceType VehicleServiceApp::selectServiceBasedOnContext()
@@ -182,6 +272,9 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
     if (socket == &serviceSocket) {
         // This is a service response from EdgeServer
+        int vehicleId = getParentModule()->getIndex();
+        EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: Received response packet: " << packet->getName() << endl;
+        
         try {
             auto payload = packet->peekData<ApplicationPacket>();
             int sequenceNumber = payload->getSequenceNumber();
@@ -192,14 +285,14 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
                 emit(serviceLatency, latency.dbl());
                 pendingRequests.erase(sequenceNumber);
                 
-                EV_INFO << "Vehicle " << getParentModule()->getIndex() 
-                        << " received service response with latency " 
-                        << latency.dbl() * 1000 << "ms" << endl;
+                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✓ Response received with latency " << (latency.dbl() * 1000) << "ms" << endl;
                         
                 emit(serviceResponsesReceived, 1);
+            } else {
+                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✗ No pending request found for sequence " << sequenceNumber << endl;
             }
         } catch (const std::exception& e) {
-            EV_WARN << "Failed to parse service response packet: " << e.what() << endl;
+            EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✗ Failed to parse response: " << e.what() << endl;
         }
         delete packet;
     } else {
@@ -226,6 +319,36 @@ void VehicleServiceApp::socketClosed(UdpSocket *socket)
                 << " service socket closed" << endl;
     } else {
         VeinsInetSampleApplication::socketClosed(socket);
+    }
+}
+
+void VehicleServiceApp::handleMessage(cMessage* msg)
+{
+    if (strcmp(msg->getName(), "ipPropagationDelay") == 0) {
+        int vehicleId = getParentModule()->getIndex();
+        EV_WARN << "Vehicle " << vehicleId << " IP propagation delay completed, scheduling first service request" << endl;
+        
+        // Verify IP is still assigned after delay
+        auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+        if (interfaceTable) {
+            for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
+                auto interface = interfaceTable->getInterface(i);
+                if (interface && strstr(interface->getInterfaceName(), "wlan") != nullptr) {
+                    auto ipv4Data = interface->getProtocolData<Ipv4InterfaceData>();
+                    if (ipv4Data) {
+                        EV_WARN << "Vehicle " << vehicleId << " IP verification after delay: " << ipv4Data->getIPAddress().str() << endl;
+                    }
+                }
+            }
+        }
+        
+        delete msg;
+        
+        // Now schedule the first service request after IP assignment has propagated
+        scheduleNextServiceRequest();
+    } else {
+        // Handle VeinsInetSampleApplication messages (accident messages, etc.)
+        VeinsInetSampleApplication::handleMessage(msg);
     }
 }
 

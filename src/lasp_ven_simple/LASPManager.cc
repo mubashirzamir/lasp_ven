@@ -227,15 +227,14 @@ void LASPManager::refreshDisplay() const
 
 void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
-    EV_WARN << "=== LASP MANAGER RECEIVED PACKET ===" << endl;
-    EV_WARN << "Packet received at time: " << simTime() << endl;
+    EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: Received packet at " << simTime() << endl;
     
     // Extract vehicle service request from packet
     try {
         auto payload = packet->peekData<ApplicationPacket>();
         int vehicleId = payload->getSequenceNumber();
         
-        EV_WARN << "Successfully parsed packet, vehicle ID: " << vehicleId << endl;
+        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✓ Parsed packet from vehicle " << vehicleId << endl;
         
         // Create service request from received packet
         ServiceRequest request;
@@ -248,17 +247,13 @@ void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
         request.deadline = simTime().dbl() + 10.0; // 10 seconds deadline
         request.dataSize = 1.0; // 1 MB
         
-        EV_WARN << "Created service request for vehicle " << vehicleId << endl;
-        EV_WARN << "Calling processServiceRequest()" << endl;
+        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✓ Request from vehicle " << vehicleId << " processed" << endl;
         
         emit(requestsReceived, 1);
         processServiceRequest(request);
         
-        EV_WARN << "=== PACKET PROCESSED SUCCESSFULLY ===" << endl;
-        
     } catch (const std::exception& e) {
-        EV_WARN << "Failed to parse service request packet: " << e.what() << endl;
-        EV_WARN << "=== PACKET PROCESSING FAILED ===" << endl;
+        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✗ Failed to parse packet: " << e.what() << endl;
     }
     
     delete packet;
@@ -277,27 +272,24 @@ void LASPManager::socketClosed(UdpSocket *socket)
 
 void LASPManager::processServiceRequest(const ServiceRequest& request)
 {
-    EV_WARN << "=== PROCESSING SERVICE REQUEST ===" << endl;
-    EV_WARN << "Processing service request from vehicle " << request.vehicleId << endl;
+    EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: Processing request from vehicle " << request.vehicleId << endl;
     
     ServicePlacement* placement = findBestPlacement(request);
     if (placement) {
-        EV_WARN << "Found placement on server " << placement->serverId << endl;
-        EV_WARN << "Estimated latency: " << placement->estimatedLatency << "ms" << endl;
+        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✓ Found placement on server " << placement->serverId << " (latency: " << placement->estimatedLatency << "ms)" << endl;
         
         activePlacements.push_back(*placement);
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
-        // NEW: Send deployment command to selected edge server
-        EV_WARN << "Calling sendDeploymentCommand()" << endl;
+        // Send deployment command to selected edge server
+        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: Sending deployment command to server " << placement->serverId << endl;
         sendDeploymentCommand(*placement, request);
         
-        EV_WARN << "=== SERVICE REQUEST PROCESSED SUCCESSFULLY ===" << endl;
+        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✓ Deployment command sent to server " << placement->serverId << endl;
     }
     else {
-        EV_WARN << "No suitable server found for request from vehicle " << request.vehicleId << endl;
-        EV_WARN << "=== SERVICE REQUEST PROCESSING FAILED ===" << endl;
+        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✗ No suitable server found for vehicle " << request.vehicleId << endl;
     }
 }
 

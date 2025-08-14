@@ -45,6 +45,9 @@ protected:
 
     // Service request using Veins timer system
     virtual void scheduleNextServiceRequest();
+    
+    // Message handling
+    virtual void handleMessage(cMessage* msg) override;
 
 public:
     VehicleServiceApp();

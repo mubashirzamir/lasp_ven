@@ -102,9 +102,7 @@ void EdgeServerApp::refreshDisplay() const
 
 void EdgeServerApp::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
-    EV_WARN << "=== EDGE SERVER RECEIVED PACKET ===" << endl;
-    EV_WARN << "EdgeServer " << serverId << " received packet: " << packet->getName() << endl;
-    EV_WARN << "Packet received at time: " << simTime() << endl;
+    EV_WARN << "[FLOW-4] EDGESERVER " << serverId << " ← LASPManager: Received packet: " << packet->getName() << " at " << simTime() << endl;
     
     emit(requestsReceived, 1);
     
@@ -112,15 +110,15 @@ void EdgeServerApp::socketDataArrived(UdpSocket *socket, Packet *packet)
     auto addressInd = packet->getTag<L3AddressInd>();
     L3Address clientAddr = addressInd->getSrcAddress();
     
-    EV_WARN << "Client address: " << clientAddr.str() << endl;
+    EV_WARN << "[FLOW-4] EDGESERVER " << serverId << " ← LASPManager: Client address: " << clientAddr.str() << endl;
     
     // Check packet name to determine if it's a deployment command or direct service request
     if (strcmp(packet->getName(), "ServiceDeployment") == 0) {
-        EV_WARN << "Processing deployment command from LASPManager" << endl;
+        EV_WARN << "[FLOW-4] EDGESERVER " << serverId << " ← LASPManager: ✓ Processing deployment command" << endl;
         // This is a deployment command from LASPManager
         handleDeploymentCommand(packet, clientAddr);
     } else {
-        EV_WARN << "Processing direct service request" << endl;
+        EV_WARN << "[FLOW-4] EDGESERVER " << serverId << " ← LASPManager: ✗ Unexpected packet type: " << packet->getName() << endl;
         // This is a direct service request (shouldn't happen in our current flow)
         handleDirectServiceRequest(packet, clientAddr);
     }
@@ -205,18 +203,16 @@ void EdgeServerApp::updateLoad(double additionalLoad)
 
 void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& laspManagerAddr)
 {
-    EV_WARN << "=== EDGE SERVER PROCESSING DEPLOYMENT COMMAND ===" << endl;
-    
     // Extract deployment information
     auto payload = packet->peekData<ApplicationPacket>();
     int vehicleId = payload->getSequenceNumber();
     
-    EV_WARN << "EdgeServer " << serverId << " received deployment command for vehicle " << vehicleId << endl;
+    EV_WARN << "[FLOW-5] EDGESERVER " << serverId << " → VEHICLE " << vehicleId << ": Processing deployment command" << endl;
     
     // Simulate service processing time
     double processingTime = uniform(0.01, 0.05); // 10-50ms processing time
     
-    EV_WARN << "Processing time: " << processingTime * 1000 << "ms" << endl;
+    EV_WARN << "[FLOW-5] EDGESERVER " << serverId << " → VEHICLE " << vehicleId << ": Processing time: " << (processingTime * 1000) << "ms" << endl;
     
     // Update server load
     updateLoad(1.0); // Add some load for this service
@@ -233,10 +229,7 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
     L3Address vehicleAddr = L3AddressResolver().resolve(addressStr.c_str());
     int vehiclePort = 5000; // Assume vehicles listen on port 5000
     
-    EV_WARN << "Sending response to vehicle at " << vehicleAddr.str() << ":" << vehiclePort << endl;
-    
-    // Schedule response after processing time
-    scheduleAt(simTime() + processingTime, new cMessage("sendResponse"));
+    EV_WARN << "[FLOW-5] EDGESERVER " << serverId << " → VEHICLE " << vehicleId << ": Sending response to " << vehicleAddr.str() << ":" << vehiclePort << endl;
     
     // For now, send immediately (in real implementation, would schedule)
     socket.sendTo(response, vehicleAddr, vehiclePort);
@@ -244,9 +237,7 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
     emit(requestsProcessed, 1);
     emit(serverLoadSignal, (currentLoad / computeCapacity) * 100);
     
-    EV_WARN << "EdgeServer " << serverId << " processed service for vehicle " << vehicleId 
-            << ", current load: " << (currentLoad / computeCapacity) * 100 << "%" << endl;
-    EV_WARN << "=== DEPLOYMENT COMMAND PROCESSED SUCCESSFULLY ===" << endl;
+    EV_WARN << "[FLOW-5] EDGESERVER " << serverId << " → VEHICLE " << vehicleId << ": ✓ Response sent (load: " << (currentLoad / computeCapacity) * 100 << "%)" << endl;
 }
 
 void EdgeServerApp::handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr)
