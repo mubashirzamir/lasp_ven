@@ -212,15 +212,26 @@ void VehicleServiceApp::sendServiceRequest()
         serviceSocket.bind(L3Address("192.168.1.10"), 5000);
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Socket rebound to 192.168.1.10:5000" << endl;
         
-        // Debug: Check routing table
-        auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+        // Debug: Check routing table - try different parameter names
+        IRoutingTable* routingTable = nullptr;
+        try {
+            routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+        } catch (const cRuntimeError& e) {
+            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: routingTableModule parameter not found, trying ipv4.routingTable" << endl;
+            try {
+                routingTable = getModuleFromPar<IRoutingTable>(par("ipv4.routingTable"), this);
+            } catch (const cRuntimeError& e2) {
+                EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: ipv4.routingTable parameter not found either" << endl;
+            }
+        }
+        
         if (routingTable) {
             EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
             for (int i = 0; i < routingTable->getNumRoutes(); i++) {
                 auto route = routingTable->getRoute(i);
                 if (route) {
                     EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Route " << i << ": " 
-                            << route->getDestinationAsGeneric().str() << " -> " << route->getGatewayAsGeneric().str() << endl;
+                            << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
                 }
             }
         } else {
