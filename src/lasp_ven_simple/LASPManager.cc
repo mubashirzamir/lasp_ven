@@ -135,23 +135,36 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     EV_WARN << "LASPManager socket setup complete on port " << localPort << endl;
     
     // Debug: Check our actual IP address
-    auto interface = getModuleByPath("^.wlan");
-    if (interface) {
-        auto ipv4 = interface->getSubmodule("ipv4");
-        if (ipv4) {
-            std::string address = ipv4->par("address").stdstringValue();
-            EV_WARN << "LASPManager actual IP address: " << address << endl;
-        }
-    }
+    EV_WARN << "LASPManager checking network interfaces..." << endl;
     
-    // Debug: Check our actual IP address
-    auto interface = getModuleByPath("^.wlan");
-    if (interface) {
-        auto ipv4 = interface->getSubmodule("ipv4");
+    // Check for different possible interface names
+    auto wlan = getModuleByPath("^.wlan[0]");
+    auto eth = getModuleByPath("^.eth");
+    auto ppp = getModuleByPath("^.ppp");
+    
+    if (wlan) {
+        EV_WARN << "Found wlan interface" << endl;
+        auto ipv4 = wlan->getSubmodule("ipv4");
         if (ipv4) {
             std::string address = ipv4->par("address").stdstringValue();
             EV_WARN << "LASPManager actual IP address: " << address << endl;
         }
+    } else if (eth) {
+        EV_WARN << "Found eth interface" << endl;
+        auto ipv4 = eth->getSubmodule("ipv4");
+        if (ipv4) {
+            std::string address = ipv4->par("address").stdstringValue();
+            EV_WARN << "LASPManager actual IP address: " << address << endl;
+        }
+    } else if (ppp) {
+        EV_WARN << "Found ppp interface" << endl;
+        auto ipv4 = ppp->getSubmodule("ipv4");
+        if (ipv4) {
+            std::string address = ipv4->par("address").stdstringValue();
+            EV_WARN << "LASPManager actual IP address: " << address << endl;
+        }
+    } else {
+        EV_WARN << "No network interfaces found" << endl;
     }
     
     // Initialize edge servers
