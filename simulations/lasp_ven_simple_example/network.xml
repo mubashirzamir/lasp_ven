@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <!-- Network topology configuration for LASP VEN simulation -->
+    
+    <!-- Define interfaces for all nodes -->
+    <interface hosts="laspManager" names="wlan0" address="192.168.1.100" netmask="255.255.255.0"/>
+    <interface hosts="edgeServer[0]" names="wlan0" address="192.168.1.200" netmask="255.255.255.0"/>
+    <interface hosts="edgeServer[1]" names="wlan0" address="192.168.1.201" netmask="255.255.255.0"/>
+    <interface hosts="edgeServer[2]" names="wlan0" address="192.168.1.202" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[0]" names="wlan0" address="192.168.1.10" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[1]" names="wlan0" address="192.168.1.11" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[2]" names="wlan0" address="192.168.1.12" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[3]" names="wlan0" address="192.168.1.13" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[4]" names="wlan0" address="192.168.1.14" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[5]" names="wlan0" address="192.168.1.15" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[6]" names="wlan0" address="192.168.1.16" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[7]" names="wlan0" address="192.168.1.17" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[8]" names="wlan0" address="192.168.1.18" netmask="255.255.255.0"/>
+    <interface hosts="vehicle[9]" names="wlan0" address="192.168.1.19" netmask="255.255.255.0"/>
+    
+    <!-- Multicast groups -->
+    <multicast-group hosts="*" address="224.0.0.1"/>
+    
+</config>

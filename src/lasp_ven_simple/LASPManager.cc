@@ -227,14 +227,14 @@ void LASPManager::refreshDisplay() const
 
 void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
-    EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: Received packet at " << simTime() << endl;
+    EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Received packet at " << simTime() << endl;
     
     // Extract vehicle service request from packet
     try {
         auto payload = packet->peekData<ApplicationPacket>();
         int vehicleId = payload->getSequenceNumber();
         
-        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✓ Parsed packet from vehicle " << vehicleId << endl;
+        EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Parsed packet from vehicle " << vehicleId << endl;
         
         // Create service request from received packet
         ServiceRequest request;
@@ -247,13 +247,13 @@ void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
         request.deadline = simTime().dbl() + 10.0; // 10 seconds deadline
         request.dataSize = 1.0; // 1 MB
         
-        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✓ Request from vehicle " << vehicleId << " processed" << endl;
+        EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Request from vehicle " << vehicleId << " processed" << endl;
         
         emit(requestsReceived, 1);
         processServiceRequest(request);
         
     } catch (const std::exception& e) {
-        EV_WARN << "[FLOW-2] LASPManager ← VEHICLE: ✗ Failed to parse packet: " << e.what() << endl;
+        EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Failed to parse packet: " << e.what() << endl;
     }
     
     delete packet;
@@ -272,24 +272,24 @@ void LASPManager::socketClosed(UdpSocket *socket)
 
 void LASPManager::processServiceRequest(const ServiceRequest& request)
 {
-    EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: Processing request from vehicle " << request.vehicleId << endl;
+            EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Processing request from vehicle " << request.vehicleId << endl;
     
     ServicePlacement* placement = findBestPlacement(request);
     if (placement) {
-        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✓ Found placement on server " << placement->serverId << " (latency: " << placement->estimatedLatency << "ms)" << endl;
+        EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Found placement on server " << placement->serverId << " (latency: " << placement->estimatedLatency << "ms)" << endl;
         
         activePlacements.push_back(*placement);
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
         // Send deployment command to selected edge server
-        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: Sending deployment command to server " << placement->serverId << endl;
+        EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Sending deployment command to server " << placement->serverId << endl;
         sendDeploymentCommand(*placement, request);
         
-        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✓ Deployment command sent to server " << placement->serverId << endl;
+        EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Deployment command sent to server " << placement->serverId << endl;
     }
     else {
-        EV_WARN << "[FLOW-3] LASPManager → EDGESERVER: ✗ No suitable server found for vehicle " << request.vehicleId << endl;
+        EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: No suitable server found for vehicle " << request.vehicleId << endl;
     }
 }
 
@@ -414,7 +414,7 @@ void LASPManager::sendDeploymentCommand(const ServicePlacement& placement, const
     // Send to selected edge server  
     std::string addressStr = "192.168.1." + std::to_string(200 + placement.serverId);
     L3Address edgeServerAddress = L3AddressResolver().resolve(addressStr.c_str());
-    int edgeServerPort = 8000 + placement.serverId;
+    int edgeServerPort = 8000; // All edge servers listen on port 8000
     
     EV_WARN << "EdgeServer address: " << edgeServerAddress.str() << ":" << edgeServerPort << endl;
     

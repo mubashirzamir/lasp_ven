@@ -66,7 +66,7 @@ bool VehicleServiceApp::startApplication()
     
     // Assign IP address to vehicle programmatically
     int vehicleId = getParentModule()->getIndex();
-    std::string vehicleIP = "192.168.1." + std::to_string(10 + vehicleId);
+    vehicleIP = "192.168.1." + std::to_string(10 + vehicleId);
     
     EV_WARN << "=== VEHICLE " << vehicleId << " IP ASSIGNMENT ATTEMPT ===" << endl;
     EV_WARN << "Attempting to assign IP: " << vehicleIP << endl;
@@ -203,40 +203,13 @@ void VehicleServiceApp::sendServiceRequest()
             }
         }
         
-        serviceSocket.bind(5000);
-        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Socket bound to port 5000" << endl;
+        // Bind socket to the assigned IP address and port
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Binding socket to " << vehicleIP << ":5000" << endl;
+        serviceSocket.bind(L3Address(vehicleIP.c_str()), 5000);
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
         
-        // Try to bind to specific IP address instead of just port
-        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Attempting to bind socket to specific IP 192.168.1.10:5000" << endl;
-        serviceSocket.close(); // Close the previous binding
-        serviceSocket.bind(L3Address("192.168.1.10"), 5000);
-        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Socket rebound to 192.168.1.10:5000" << endl;
-        
-        // Debug: Check routing table - try different parameter names
-        IRoutingTable* routingTable = nullptr;
-        try {
-            routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
-        } catch (const cRuntimeError& e) {
-            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: routingTableModule parameter not found, trying ipv4.routingTable" << endl;
-            try {
-                routingTable = getModuleFromPar<IRoutingTable>(par("ipv4.routingTable"), this);
-            } catch (const cRuntimeError& e2) {
-                EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: ipv4.routingTable parameter not found either" << endl;
-            }
-        }
-        
-        if (routingTable) {
-            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
-            for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-                auto route = routingTable->getRoute(i);
-                if (route) {
-                    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Route " << i << ": " 
-                            << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
-                }
-            }
-        } else {
-            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: No routing table found" << endl;
-        }
+        // Debug: IP assignment successful, routing will be handled automatically
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: IP assignment complete, ready for communication" << endl;
     }
     
     // Create service request packet
@@ -252,7 +225,7 @@ void VehicleServiceApp::sendServiceRequest()
     // Track request for latency measurement  
     pendingRequests[vehicleId] = simTime();
     
-    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: Packet created, sending to " << laspManagerAddress.str() << ":" << laspManagerPort << endl;
+    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Packet created, sending to " << laspManagerAddress.str() << ":" << laspManagerPort << endl;
     
     // Send to LASP Manager
     serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
@@ -261,7 +234,7 @@ void VehicleServiceApp::sendServiceRequest()
     requestCounter++;
     
     ServiceType service = selectServiceBasedOnContext();
-    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: ✓ Request #" << requestCounter << " sent (service type " << service << ")" << endl;
+    EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Request #" << requestCounter << " sent (service type " << service << ")" << endl;
 }
 
 ServiceType VehicleServiceApp::selectServiceBasedOnContext()
@@ -284,7 +257,7 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
     if (socket == &serviceSocket) {
         // This is a service response from EdgeServer
         int vehicleId = getParentModule()->getIndex();
-        EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: Received response packet: " << packet->getName() << endl;
+        EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: Received response packet: " << packet->getName() << endl;
         
         try {
             auto payload = packet->peekData<ApplicationPacket>();
@@ -296,14 +269,14 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
                 emit(serviceLatency, latency.dbl());
                 pendingRequests.erase(sequenceNumber);
                 
-                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✓ Response received with latency " << (latency.dbl() * 1000) << "ms" << endl;
+                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: Response received with latency " << (latency.dbl() * 1000) << "ms" << endl;
                         
                 emit(serviceResponsesReceived, 1);
             } else {
-                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✗ No pending request found for sequence " << sequenceNumber << endl;
+                EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: No pending request found for sequence " << sequenceNumber << endl;
             }
         } catch (const std::exception& e) {
-            EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " ← EDGESERVER: ✗ Failed to parse response: " << e.what() << endl;
+            EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: Failed to parse response: " << e.what() << endl;
         }
         delete packet;
     } else {

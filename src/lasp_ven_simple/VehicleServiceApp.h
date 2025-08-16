@@ -29,6 +29,9 @@ private:
     // Request tracking for latency measurement
     std::map<int, simtime_t> pendingRequests;
     
+    // Vehicle IP address (assigned programmatically)
+    std::string vehicleIP;
+    
 protected:
     virtual bool startApplication() override;
     virtual bool stopApplication() override;
