@@ -354,7 +354,11 @@ void LASPManager::evaluateCurrentPlacements()
     double avgUtilization = totalUtilization / edgeServers.size();
     emit(serverUtilization, avgUtilization);
     
-    EV_WARN << "Current server utilization: " << (avgUtilization * 100) << "%" << endl;
+    // Reduced frequency logging to save tokens
+    static int utilizationLogCounter = 0;
+    if (++utilizationLogCounter % 20 == 0) {  // Log every 20th evaluation
+        EV_WARN << "[UTIL] Server utilization: " << (avgUtilization * 100) << "%" << endl;
+    }
 }
 
 void LASPManager::handleEvaluationTimer()
@@ -435,7 +439,7 @@ void LASPManager::sendDeploymentCommand(const ServicePlacement& placement, const
     // Send to selected edge server  
     std::string addressStr = "192.168.1." + std::to_string(200 + placement.serverId);
     L3Address edgeServerAddress = L3AddressResolver().resolve(addressStr.c_str());
-    int edgeServerPort = 8000; // All edge servers listen on port 8000
+    int edgeServerPort = 8000 + placement.serverId; // Each server has unique port
     
     EV_WARN << "EdgeServer address: " << edgeServerAddress.str() << ":" << edgeServerPort << endl;
     
