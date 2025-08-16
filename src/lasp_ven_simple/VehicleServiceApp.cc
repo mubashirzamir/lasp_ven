@@ -209,11 +209,12 @@ void VehicleServiceApp::sendServiceRequest()
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
         
         // Debug: Check routing table after IP assignment
-        auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+        auto routingTable = getModuleByPath("^.wlan[0].ipv4.routingTable");
         if (routingTable) {
-            EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
-            for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-                auto route = routingTable->getRoute(i);
+            auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
+            EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
+            for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
+                auto route = iroutingTable->getRoute(i);
                 if (route) {
                     EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": Route " << i << ": " 
                             << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;

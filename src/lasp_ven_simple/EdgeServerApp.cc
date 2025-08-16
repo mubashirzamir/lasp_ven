@@ -73,11 +73,12 @@ void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
             EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": IP address: " << address << endl;
             
             // Check routing table
-            auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+            auto routingTable = getModuleByPath("^.wlan[0].ipv4.routingTable");
             if (routingTable) {
-                EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
-                for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-                    auto route = routingTable->getRoute(i);
+                auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
+                EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
+                for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
+                    auto route = iroutingTable->getRoute(i);
                     if (route) {
                         EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Route " << i << ": " 
                                 << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
