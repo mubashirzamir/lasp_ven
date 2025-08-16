@@ -144,13 +144,14 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     
     if (wlan) {
         EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found wlan interface" << endl;
-        auto ipv4 = wlan->getSubmodule("ipv4");
+        
+        // IPv4 module is at host level, not wlan level
+        auto ipv4 = getModuleByPath("^.ipv4");
         if (ipv4) {
-            std::string address = ipv4->par("address").stdstringValue();
-            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Actual IP address: " << address << endl;
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found IPv4 module at host level" << endl;
             
-            // Check routing table
-            auto routingTable = getModuleByPath("^.wlan[0].ipv4.routingTable");
+            // Check routing table at host level
+            auto routingTable = getModuleByPath("^.ipv4.routingTable");
             if (routingTable) {
                 auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
                 EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
@@ -165,7 +166,7 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
                 EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No routing table found" << endl;
             }
         } else {
-            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No IPv4 module found in wlan interface" << endl;
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No IPv4 module found at host level" << endl;
         }
     } else if (eth) {
         EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found eth interface" << endl;
