@@ -133,7 +133,7 @@ void VehicleServiceApp::processPacket(std::shared_ptr<inet::Packet> pk)
 {
     // Ignore accident messages and other VeinsInetSampleApplication packets
     // Our vehicles should only process service response packets via socketDataArrived
-    EV_INFO << "Vehicle " << getParentModule()->getIndex() 
+    EV_WARN << "Vehicle " << getParentModule()->getIndex() 
             << " ignoring VeinsInetSampleApplication packet for VEN testing" << endl;
     
     // Delete the packet without processing
@@ -315,8 +315,8 @@ void VehicleServiceApp::socketErrorArrived(UdpSocket *socket, Indication *indica
 void VehicleServiceApp::socketClosed(UdpSocket *socket)
 {
     if (socket == &serviceSocket) {
-        EV_INFO << "Vehicle " << getParentModule()->getIndex() 
-                << " service socket closed" << endl;
+            EV_WARN << "Vehicle " << getParentModule()->getIndex() 
+            << " service socket closed" << endl;
     } else {
         VeinsInetSampleApplication::socketClosed(socket);
     }

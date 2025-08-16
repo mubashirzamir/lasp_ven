@@ -133,6 +133,7 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     socket.setCallback(this);
     
     EV_WARN << "LASPManager socket setup complete on port " << localPort << endl;
+    EV_WARN << "[NETWORK-DEBUG] LASPManager bound to port " << localPort << " and ready to receive" << endl;
     
     // Debug: Check our actual IP address
     EV_WARN << "LASPManager checking network interfaces..." << endl;
@@ -155,6 +156,7 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
             if (routingTable) {
                 auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
                 EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
+                EV_WARN << "[NETWORK-DEBUG] LASPManager: IPv4 network stack is properly initialized!" << endl;
                 for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
                     auto route = iroutingTable->getRoute(i);
                     if (route) {
@@ -200,7 +202,7 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
 void LASPManager::handleStopOperation(inet::LifecycleOperation* operation)
 {
     // Application is stopping
-    EV_INFO << "LASPManager stopping..." << endl;
+    EV_WARN << "LASPManager stopping..." << endl;
     
     if (evaluationTimer) {
         cancelAndDelete(evaluationTimer);
@@ -209,7 +211,7 @@ void LASPManager::handleStopOperation(inet::LifecycleOperation* operation)
     
     socket.close();
     
-    EV_INFO << "LASPManager stopped." << endl;
+    EV_WARN << "LASPManager stopped." << endl;
 }
 
 void LASPManager::handleCrashOperation(inet::LifecycleOperation* operation)
@@ -286,7 +288,7 @@ void LASPManager::socketErrorArrived(UdpSocket *socket, Indication *indication)
 
 void LASPManager::socketClosed(UdpSocket *socket)
 {
-    EV_INFO << "UDP socket closed" << endl;
+    EV_WARN << "UDP socket closed" << endl;
 }
 
 void LASPManager::processServiceRequest(const ServiceRequest& request)
@@ -352,7 +354,7 @@ void LASPManager::evaluateCurrentPlacements()
     double avgUtilization = totalUtilization / edgeServers.size();
     emit(serverUtilization, avgUtilization);
     
-    EV_INFO << "Current server utilization: " << (avgUtilization * 100) << "%" << endl;
+    EV_WARN << "Current server utilization: " << (avgUtilization * 100) << "%" << endl;
 }
 
 void LASPManager::handleEvaluationTimer()
@@ -447,7 +449,7 @@ void LASPManager::finish()
 {
     ApplicationBase::finish();
     
-    EV_INFO << "LASPManager finished. Total requests served: " 
+    EV_WARN << "LASPManager finished. Total requests served: " 
             << activePlacements.size() << endl;
 }
 

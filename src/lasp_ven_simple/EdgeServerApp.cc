@@ -63,6 +63,7 @@ void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
     socket.setCallback(this);
     
     EV_WARN << "EdgeServer " << serverId << " socket setup complete" << endl;
+    EV_WARN << "[NETWORK-DEBUG] EdgeServer " << serverId << " bound to port " << localPort << " and ready to receive" << endl;
     
     // Debug: Check IP address and routing
     auto wlan = getModuleByPath("^.wlan[0]");
@@ -80,6 +81,7 @@ void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
             if (routingTable) {
                 auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
                 EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
+                EV_WARN << "[NETWORK-DEBUG] EdgeServer " << serverId << ": IPv4 network stack is properly initialized!" << endl;
                 for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
                     auto route = iroutingTable->getRoute(i);
                     if (route) {
@@ -103,7 +105,7 @@ void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
 void EdgeServerApp::handleStopOperation(inet::LifecycleOperation* operation)
 {
     socket.close();
-    EV_INFO << "EdgeServer " << serverId << " stopped" << endl;
+    EV_WARN << "EdgeServer " << serverId << " stopped" << endl;
 }
 
 void EdgeServerApp::handleCrashOperation(inet::LifecycleOperation* operation)
@@ -168,12 +170,12 @@ void EdgeServerApp::socketErrorArrived(UdpSocket *socket, Indication *indication
 
 void EdgeServerApp::socketClosed(UdpSocket *socket)
 {
-    EV_INFO << "EdgeServer " << serverId << " socket closed" << endl;
+    EV_WARN << "EdgeServer " << serverId << " socket closed" << endl;
 }
 
 void EdgeServerApp::processServiceRequest(const ServiceRequest& request, const L3Address& clientAddr, int clientPort)
 {
-    EV_INFO << "EdgeServer " << serverId << " processing request from vehicle " << request.vehicleId << endl;
+    EV_WARN << "EdgeServer " << serverId << " processing request from vehicle " << request.vehicleId << endl;
     
     if (!canHandleRequest(request)) {
         EV_WARN << "EdgeServer " << serverId << " cannot handle request - insufficient capacity or unsupported service" << endl;
@@ -191,7 +193,7 @@ void EdgeServerApp::processServiceRequest(const ServiceRequest& request, const L
     auto response = new Packet("ServiceResponse");
     socket.sendTo(response, clientAddr, clientPort);
     
-    EV_INFO << "EdgeServer " << serverId << " processed request, current load: " 
+    EV_WARN << "EdgeServer " << serverId << " processed request, current load: " 
             << (currentLoad / computeCapacity) * 100 << "%" << endl;
 }
 
@@ -277,7 +279,7 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
 void EdgeServerApp::handleDirectServiceRequest(Packet* packet, const L3Address& clientAddr)
 {
     // Handle direct service requests (for future use)
-    EV_INFO << "EdgeServer " << serverId << " received direct service request" << endl;
+    EV_WARN << "EdgeServer " << serverId << " received direct service request" << endl;
     
     // For now, just acknowledge
     auto response = new Packet("DirectServiceResponse");
@@ -286,7 +288,7 @@ void EdgeServerApp::handleDirectServiceRequest(Packet* packet, const L3Address& 
 
 void EdgeServerApp::finish()
 {
-    EV_INFO << "EdgeServer " << serverId << " finished. Final load: " 
+    EV_WARN << "EdgeServer " << serverId << " finished. Final load: " 
             << (currentLoad / computeCapacity) * 100 << "%" << endl;
 }
 
