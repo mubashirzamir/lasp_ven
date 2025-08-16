@@ -7,6 +7,8 @@
 #include "inet/applications/base/ApplicationPacket_m.h"
 #include "inet/common/TimeTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
+#include "inet/networklayer/contract/IInterfaceTable.h"
+#include "inet/networklayer/ipv4/Ipv4InterfaceData.h"
 #include <cmath>
 #include <algorithm>
 #include <random>
@@ -159,10 +161,11 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
                 EV_WARN << "[NETWORK-DEBUG] LASPManager: IPv4 network stack is properly initialized!" << endl;
     
     // Debug: Check actual IP address assigned
-    auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+    auto interfaceTable = getModuleByPath("^.interfaceTable");
     if (interfaceTable) {
-        for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
-            auto interface = interfaceTable->getInterface(i);
+        auto iinterfaceTable = check_and_cast<IInterfaceTable*>(interfaceTable);
+        for (int i = 0; i < iinterfaceTable->getNumInterfaces(); i++) {
+            auto interface = iinterfaceTable->getInterface(i);
             if (interface && strstr(interface->getInterfaceName(), "wlan") != nullptr) {
                 auto ipv4Data = interface->getProtocolData<Ipv4InterfaceData>();
                 if (ipv4Data) {
@@ -170,6 +173,8 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
                 }
             }
         }
+    } else {
+        EV_WARN << "[NETWORK-DEBUG] LASPManager: Could not find interface table" << endl;
     }
                 for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
                     auto route = iroutingTable->getRoute(i);
