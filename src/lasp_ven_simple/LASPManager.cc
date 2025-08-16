@@ -143,28 +143,45 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
     auto ppp = getModuleByPath("^.ppp");
     
     if (wlan) {
-        EV_WARN << "Found wlan interface" << endl;
+        EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found wlan interface" << endl;
         auto ipv4 = wlan->getSubmodule("ipv4");
         if (ipv4) {
             std::string address = ipv4->par("address").stdstringValue();
-            EV_WARN << "LASPManager actual IP address: " << address << endl;
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Actual IP address: " << address << endl;
+            
+            // Check routing table
+            auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+            if (routingTable) {
+                EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
+                for (int i = 0; i < routingTable->getNumRoutes(); i++) {
+                    auto route = routingTable->getRoute(i);
+                    if (route) {
+                        EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Route " << i << ": " 
+                                << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
+                    }
+                }
+            } else {
+                EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No routing table found" << endl;
+            }
+        } else {
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No IPv4 module found in wlan interface" << endl;
         }
     } else if (eth) {
-        EV_WARN << "Found eth interface" << endl;
+        EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found eth interface" << endl;
         auto ipv4 = eth->getSubmodule("ipv4");
         if (ipv4) {
             std::string address = ipv4->par("address").stdstringValue();
-            EV_WARN << "LASPManager actual IP address: " << address << endl;
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Actual IP address: " << address << endl;
         }
     } else if (ppp) {
-        EV_WARN << "Found ppp interface" << endl;
+        EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Found ppp interface" << endl;
         auto ipv4 = ppp->getSubmodule("ipv4");
         if (ipv4) {
             std::string address = ipv4->par("address").stdstringValue();
-            EV_WARN << "LASPManager actual IP address: " << address << endl;
+            EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Actual IP address: " << address << endl;
         }
     } else {
-        EV_WARN << "No network interfaces found" << endl;
+        EV_WARN << "[DEBUG-ROUTE-001] LASPManager: No network interfaces found" << endl;
     }
     
     // Initialize edge servers

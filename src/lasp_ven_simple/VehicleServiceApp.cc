@@ -208,6 +208,21 @@ void VehicleServiceApp::sendServiceRequest()
         serviceSocket.bind(L3Address(vehicleIP.c_str()), 5000);
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
         
+        // Debug: Check routing table after IP assignment
+        auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+        if (routingTable) {
+            EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
+            for (int i = 0; i < routingTable->getNumRoutes(); i++) {
+                auto route = routingTable->getRoute(i);
+                if (route) {
+                    EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": Route " << i << ": " 
+                            << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
+                }
+            }
+        } else {
+            EV_WARN << "[DEBUG-ROUTE-001] Vehicle " << vehicleId << ": No routing table found" << endl;
+        }
+        
         // Debug: IP assignment successful, routing will be handled automatically
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: IP assignment complete, ready for communication" << endl;
     }

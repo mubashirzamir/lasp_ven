@@ -63,6 +63,36 @@ void EdgeServerApp::handleStartOperation(inet::LifecycleOperation* operation)
     socket.setCallback(this);
     
     EV_WARN << "EdgeServer " << serverId << " socket setup complete" << endl;
+    
+    // Debug: Check IP address and routing
+    auto wlan = getModuleByPath("^.wlan[0]");
+    if (wlan) {
+        auto ipv4 = wlan->getSubmodule("ipv4");
+        if (ipv4) {
+            std::string address = ipv4->par("address").stdstringValue();
+            EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": IP address: " << address << endl;
+            
+            // Check routing table
+            auto routingTable = getModuleFromPar<IRoutingTable>(par("routingTableModule"), this);
+            if (routingTable) {
+                EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Routing table has " << routingTable->getNumRoutes() << " routes" << endl;
+                for (int i = 0; i < routingTable->getNumRoutes(); i++) {
+                    auto route = routingTable->getRoute(i);
+                    if (route) {
+                        EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": Route " << i << ": " 
+                                << route->getDestinationAsGeneric().str() << " -> " << route->getNextHopAsGeneric().str() << endl;
+                    }
+                }
+            } else {
+                EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": No routing table found" << endl;
+            }
+        } else {
+            EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": No IPv4 module found" << endl;
+        }
+    } else {
+        EV_WARN << "[DEBUG-ROUTE-001] EdgeServer " << serverId << ": No wlan interface found" << endl;
+    }
+    
     EV_WARN << "=== EDGE SERVER STARTED ===" << endl;
 }
 
