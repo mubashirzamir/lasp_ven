@@ -157,6 +157,20 @@ void LASPManager::handleStartOperation(inet::LifecycleOperation* operation)
                 auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
                 EV_WARN << "[DEBUG-ROUTE-001] LASPManager: Routing table has " << iroutingTable->getNumRoutes() << " routes" << endl;
                 EV_WARN << "[NETWORK-DEBUG] LASPManager: IPv4 network stack is properly initialized!" << endl;
+    
+    // Debug: Check actual IP address assigned
+    auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+    if (interfaceTable) {
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
+            auto interface = interfaceTable->getInterface(i);
+            if (interface && strstr(interface->getInterfaceName(), "wlan") != nullptr) {
+                auto ipv4Data = interface->getProtocolData<Ipv4InterfaceData>();
+                if (ipv4Data) {
+                    EV_WARN << "[NETWORK-DEBUG] LASPManager actual IP: " << ipv4Data->getIPAddress().str() << endl;
+                }
+            }
+        }
+    }
                 for (int i = 0; i < iroutingTable->getNumRoutes(); i++) {
                     auto route = iroutingTable->getRoute(i);
                     if (route) {
