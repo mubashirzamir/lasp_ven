@@ -8,6 +8,7 @@
 #include "inet/networklayer/ipv4/Ipv4InterfaceData.h"
 #include "inet/networklayer/common/L3Address.h"
 #include "inet/networklayer/contract/IRoutingTable.h"
+#include "inet/networklayer/ipv4/Ipv4Route.h"
 #include <random>
 
 using namespace omnetpp;
@@ -94,11 +95,29 @@ bool VehicleServiceApp::startApplication()
                            ipv4Data->setIPAddress(ipAddr.toIpv4());
                            ipv4Data->setNetmask(netmaskAddr.toIpv4());
                            
-                           EV_WARN << "✓ Vehicle " << vehicleId << " IP successfully assigned: " << vehicleIP << " to interface " << interface->getInterfaceName() << endl;
-                           EV_WARN << "Vehicle " << vehicleId << " IP after assignment: " << ipv4Data->getIPAddress().str() << endl;
-                           EV_WARN << "Vehicle " << vehicleId << " Netmask after assignment: " << ipv4Data->getNetmask().str() << endl;
-                           ipAssigned = true;
-                           break;
+                                                       EV_WARN << "✓ Vehicle " << vehicleId << " IP successfully assigned: " << vehicleIP << " to interface " << interface->getInterfaceName() << endl;
+                            EV_WARN << "Vehicle " << vehicleId << " IP after assignment: " << ipv4Data->getIPAddress().str() << endl;
+                            EV_WARN << "Vehicle " << vehicleId << " Netmask after assignment: " << ipv4Data->getNetmask().str() << endl;
+                            
+                            // Add default route to routing table
+                            auto routingTable = getModuleByPath("^.ipv4.routingTable");
+                            if (routingTable) {
+                                auto iroutingTable = check_and_cast<IRoutingTable*>(routingTable);
+                                // Create a default route for the local network (192.168.1.0/24)
+                                auto route = new Ipv4Route();
+                                route->setDestination(Ipv4Address("192.168.1.0"));  // Network address
+                                route->setNetmask(Ipv4Address("255.255.255.0"));    // /24 netmask
+                                route->setGateway(Ipv4Address::UNSPECIFIED_ADDRESS); // Direct connection
+                                route->setInterface(interface);
+                                route->setMetric(0);
+                                iroutingTable->addRoute(route);
+                                EV_WARN << "✓ Vehicle " << vehicleId << " added default route to routing table" << endl;
+                            } else {
+                                EV_WARN << "✗ Vehicle " << vehicleId << " could not find routing table" << endl;
+                            }
+                            
+                            ipAssigned = true;
+                            break;
                     } else {
                         EV_WARN << "✗ Vehicle " << vehicleId << " failed to get IPv4 interface data for " << interface->getInterfaceName() << endl;
                     }
