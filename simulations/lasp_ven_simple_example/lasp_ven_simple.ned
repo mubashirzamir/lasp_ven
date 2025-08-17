@@ -3,7 +3,7 @@ package lasp_ven.simulations.lasp_ven_simple_example;
 import lasp_ven.veins_inet.VeinsInetManager;
 import lasp_ven.veins_inet.VeinsInetCar;
 import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
-import inet.physicallayer.ieee80211.packetlevel.Ieee80211ScalarRadioMedium;
+import inet.physicallayer.ieee80211.packetlevel.Ieee80211DimensionalRadioMedium;
 import inet.node.inet.StandardHost;
 import lasp_ven.lasp_ven_simple.LASPManager;
 import lasp_ven.lasp_ven_simple.EdgeServerApp;
@@ -26,7 +26,7 @@ network LaspVenSimpleSimulation
         @display("bgb=1000,1000");
 
     submodules:
-        radioMedium: Ieee80211ScalarRadioMedium {
+        radioMedium: Ieee80211DimensionalRadioMedium {
             @display("p=168.672,96.383995");
         }
 
@@ -66,8 +66,6 @@ network LaspVenSimpleSimulation
             hasIpv4 = true;
             hasUdp = true;
         }
-
-
 
         // Physical Edge Servers
         edgeServer[numEdgeServers]: StandardHost {

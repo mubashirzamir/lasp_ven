@@ -83,7 +83,7 @@ void VeinsInetSampleApplication::processPacket(std::shared_ptr<inet::Packet> pk)
 {
     auto payload = pk->peekAtFront<VeinsInetSampleMessage>();
 
-    EV_INFO << "Received packet: " << payload << endl;
+    EV_WARN << "Received packet: " << payload << endl;
 
     getParentModule()->getDisplayString().setTagArg("i", 1, "green");
 

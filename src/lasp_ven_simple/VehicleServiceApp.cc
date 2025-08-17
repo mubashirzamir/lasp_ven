@@ -261,9 +261,14 @@ void VehicleServiceApp::sendServiceRequest()
     pendingRequests[vehicleId] = simTime();
     
     EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Packet created, sending to " << laspManagerAddress.str() << ":" << laspManagerPort << endl;
+    EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": Packet size: " << packet->getByteLength() << " bytes" << endl;
+    EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": Payload size: " << payload->getChunkLength() << " bytes" << endl;
+    EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": LASPManager address: " << laspManagerAddress.str() << endl;
     
     // Send to LASP Manager
     serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
+    
+    EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": sendTo() called successfully" << endl;
     
     emit(serviceRequestsSent, 1);
     requestCounter++;

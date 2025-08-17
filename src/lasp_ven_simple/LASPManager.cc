@@ -113,10 +113,13 @@ void LASPManager::initializeEdgeServers()
 
 void LASPManager::handleMessage(cMessage *msg)
 {
+    EV_WARN << "[DEBUG] LASPManager handleMessage called with: " << msg->getName() << endl;
+    
     if (msg == evaluationTimer) {
         handleEvaluationTimer();
     }
     else {
+        EV_WARN << "[DEBUG] LASPManager processing message via socket: " << msg->getName() << endl;
         socket.processMessage(msg);
     }
 }
@@ -268,6 +271,7 @@ void LASPManager::refreshDisplay() const
 void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
     EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Received packet at " << simTime() << endl;
+    EV_WARN << "[DEBUG] LASPManager: Packet details - Name: " << packet->getName() << ", Size: " << packet->getByteLength() << " bytes" << endl;
     
     // Extract vehicle service request from packet
     try {
@@ -275,6 +279,7 @@ void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
         int vehicleId = payload->getSequenceNumber();
         
         EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Parsed packet from vehicle " << vehicleId << endl;
+        EV_WARN << "[DEBUG] LASPManager: Payload sequence number: " << vehicleId << ", Chunk length: " << payload->getChunkLength() << endl;
         
         // Create service request from received packet
         ServiceRequest request;
@@ -294,6 +299,7 @@ void LASPManager::socketDataArrived(UdpSocket *socket, Packet *packet)
         
     } catch (const std::exception& e) {
         EV_WARN << "[FLOW-2] LASPManager <- VEHICLE: Failed to parse packet: " << e.what() << endl;
+        EV_WARN << "[DEBUG] LASPManager: Packet class: " << packet->getClassName() << endl;
     }
     
     delete packet;
