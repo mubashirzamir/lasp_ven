@@ -75,25 +75,35 @@ void LASPManager::initializeEdgeServers()
     EV_WARN << "=== INITIALIZING EDGE SERVERS ===" << endl;
     EV_WARN << "Creating " << numEdgeServers << " edge servers" << endl;
     
-    // Create edge servers at strategic locations within road network (0-100m)
+    // Create exactly 4 edge servers at symmetric locations around the square road network
     for (int i = 0; i < numEdgeServers; i++) {
         EdgeServer server;
         server.serverId = i;
         
-        // Position servers strategically across the road network
-        // Road network spans 0-100m in both X and Y directions
-        if (numEdgeServers <= 3) {
-            // For 3 servers: distribute along main road
-            server.latitude = 20.0 + (i * 30.0);  // X: 20, 50, 80 meters
-            server.longitude = 50.0;               // Y: center of road network
-        } else if (numEdgeServers <= 5) {
-            // For 5 servers: grid pattern
-            server.latitude = 10.0 + (i % 3) * 40.0;     // X: 10, 50, 90, 10, 50
-            server.longitude = 25.0 + (i / 3) * 50.0;    // Y: 25, 25, 25, 75, 75
-        } else {
-            // For 8 servers: dense grid coverage
-            server.latitude = 12.5 + (i % 4) * 25.0;     // X: every 25m
-            server.longitude = 25.0 + (i / 4) * 50.0;    // Y: 25m and 75m rows
+        // Position servers symmetrically at the corners of the 100m x 100m square road network
+        // Fixed symmetric layout: 4 servers at corners
+        switch (i) {
+            case 0: // Bottom-left corner (0,0)
+                server.latitude = 0.0;
+                server.longitude = 0.0;
+                break;
+            case 1: // Bottom-right corner (100,0)
+                server.latitude = 100.0;
+                server.longitude = 0.0;
+                break;
+            case 2: // Top-right corner (100,100)
+                server.latitude = 100.0;
+                server.longitude = 100.0;
+                break;
+            case 3: // Top-left corner (0,100)
+                server.latitude = 0.0;
+                server.longitude = 100.0;
+                break;
+            default:
+                // Fallback for any additional servers (shouldn't happen with 4 servers)
+                server.latitude = 50.0;
+                server.longitude = 50.0;
+                break;
         }
         server.computeCapacity = 100.0; // 100 GFLOPS
         server.storageCapacity = 1000.0; // 1 TB

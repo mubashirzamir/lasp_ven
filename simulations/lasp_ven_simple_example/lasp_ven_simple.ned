@@ -17,11 +17,11 @@ import org.car2x.veins.visualizer.roads.RoadsOsgVisualizer;
 network LaspVenSimpleSimulation
 {
     parameters:
-        double playgroundSizeX @unit(m) = default(200m);
-        double playgroundSizeY @unit(m) = default(200m);
+        double playgroundSizeX @unit(m) = default(100m);
+        double playgroundSizeY @unit(m) = default(100m);
         double playgroundSizeZ @unit(m) = default(50m);
-        bool useOsg = default(false);
-        int numEdgeServers = default(3);
+        bool useOsg = default(true);
+        int numEdgeServers = default(4);
 
         @display("bgb=1000,1000");
 
@@ -50,9 +50,9 @@ network LaspVenSimpleSimulation
             @display("p=716.85596,867.456");
         }
 
-        // LASP Manager (Regional Edge Computing Orchestrator)
+        // LASP Manager (Regional Edge Computing Orchestrator) - Center of square road
         laspManager: StandardHost {
-            @display("p=100,100;i=device/server");
+            @display("p=250,250;i=device/server");
 
             // Application configuration
             numApps = 1;
@@ -66,11 +66,15 @@ network LaspVenSimpleSimulation
             hasUdp = true;
         }
 
-        // Physical Edge Servers
-        edgeServer[numEdgeServers]: StandardHost {
-            @display("p=162.648,339.352;i=device/server2");  // Add position
+        // Physical Edge Servers - Fixed to exactly 4 servers at square corners
+        edgeServer[4]: StandardHost {
             numApps = 1;
             app[0].typename = "lasp_ven.lasp_ven_simple.EdgeServerApp";
+            
+            // Network stack configuration
+            numWlanInterfaces = 1;
+            hasIpv4 = true;
+            hasUdp = true;
         }
 
     connections allowunconnected:

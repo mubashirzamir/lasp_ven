@@ -12,7 +12,7 @@ simple LASPManager like IApp
         string strategy @enum("threshold", "greedy") = default("threshold");
         double loadThreshold = default(0.8);
         double evaluationInterval @unit(s) = default(2s);
-        int numEdgeServers = default(3);
+        int numEdgeServers = default(4);
         int localPort = default(9999);
         
         // Statistics
