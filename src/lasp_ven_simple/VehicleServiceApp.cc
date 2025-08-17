@@ -60,9 +60,10 @@ bool VehicleServiceApp::startApplication()
             << ", maxRequests: " << maxRequests 
             << ", serviceRequestInterval: " << serviceRequestInterval << endl;
     
-    // Setup service socket (but don't bind yet - wait for IP assignment)
+    // Setup service socket with a different port to avoid conflicts with parent socket
     serviceSocket.setOutputGate(gate("socketOut"));
     serviceSocket.setCallback(this);
+    serviceSocket.setReuseAddress(true); // Allow reuse of address
     
     EV_WARN << "Service socket setup complete (binding delayed until first request)" << endl;
     
@@ -224,21 +225,22 @@ void VehicleServiceApp::sendServiceRequest()
             }
         }
         
-        // Bind socket to the assigned IP address and port
-        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Binding socket to " << vehicleIP << ":5000" << endl;
-        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " checking if port 5000 is available..." << endl;
+        // Bind socket to a different port to avoid conflicts with parent socket
+        int servicePort = 5000 + vehicleId; // Use different port for each vehicle
+        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Binding socket to " << vehicleIP << ":" << servicePort << endl;
+        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " checking if port " << servicePort << " is available..." << endl;
         
         try {
-            serviceSocket.bind(L3Address(vehicleIP.c_str()), 5000);
-            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
+            serviceSocket.bind(L3Address(vehicleIP.c_str()), servicePort);
+            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":" << servicePort << endl;
             EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket state after binding: " << (serviceSocket.getState() == UdpSocket::CLOSED ? "CLOSED" : "OPEN") << endl;
-            EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket bound successfully to port 5000" << endl;
+            EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket bound successfully to port " << servicePort << endl;
         } catch (const std::exception& e) {
             EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " failed to bind socket: " << e.what() << endl;
-            EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " trying alternative port 5001..." << endl;
+            EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " trying alternative port " << (servicePort + 100) << "..." << endl;
             try {
-                serviceSocket.bind(L3Address(vehicleIP.c_str()), 5001);
-                EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5001" << endl;
+                serviceSocket.bind(L3Address(vehicleIP.c_str()), servicePort + 100);
+                EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":" << (servicePort + 100) << endl;
             } catch (const std::exception& e2) {
                 EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " failed to bind to alternative port: " << e2.what() << endl;
                 return;
@@ -324,7 +326,10 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
     EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket pointer: " << &serviceSocket << endl;
     EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " packet name: " << packet->getName() << endl;
     
-    if (socket == &serviceSocket) {
+    // Check if this is a service response packet
+    bool isServiceResponse = (strstr(packet->getName(), "ServiceResponse") != nullptr);
+    
+    if (socket == &serviceSocket || isServiceResponse) {
         EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " processing service socket message" << endl;
         // This is a service response from EdgeServer
         EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: Received response packet: " << packet->getName() << endl;

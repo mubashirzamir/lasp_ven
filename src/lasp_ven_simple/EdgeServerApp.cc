@@ -260,10 +260,10 @@ void EdgeServerApp::handleDeploymentCommand(Packet* packet, const L3Address& las
     responsePayload->setSequenceNumber(vehicleId);
     response->insertAtBack(responsePayload);
     
-    // Send response back to vehicle (simplified addressing)
+    // Send response back to vehicle using the correct port for each vehicle
     std::string addressStr = "192.168.1." + std::to_string(10 + vehicleId);
     L3Address vehicleAddr = L3AddressResolver().resolve(addressStr.c_str());
-    int vehiclePort = 5000; // Assume vehicles listen on port 5000
+    int vehiclePort = 5000 + vehicleId; // Each vehicle uses port 5000 + vehicleId
     
     EV_WARN << "[FLOW-5] EDGESERVER " << serverId << " -> VEHICLE " << vehicleId << ": Sending response to " << vehicleAddr.str() << ":" << vehiclePort << endl;
     
