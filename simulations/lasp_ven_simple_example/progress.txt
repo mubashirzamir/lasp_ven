@@ -1,0 +1,1 @@
+Trying to resolve: Rejecting data frame as STA is not associated with an AP.
