@@ -37,11 +37,12 @@ bool VehicleServiceApp::startApplication()
     EV_WARN << "=== VEHICLE SERVICE APP STARTING ===" << endl;
     EV_WARN << "Vehicle index: " << getParentModule()->getIndex() << endl;
     
-    // Don't call parent's startApplication() to avoid accident simulation
-    // Instead, call the grandparent (VeinsInetApplicationBase) directly
+    // Call the grandparent (VeinsInetApplicationBase) directly to avoid accident simulation
+    // but still get proper socket initialization
     bool result = VeinsInetApplicationBase::startApplication();
     
     EV_WARN << "Parent startApplication() result: " << result << endl;
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << getParentModule()->getIndex() << " parent socket initialized" << endl;
     
     // Initialize service request functionality
     serviceRequestsSent = registerSignal("serviceRequestsSent");
@@ -206,6 +207,7 @@ void VehicleServiceApp::sendServiceRequest()
     // Bind socket on first request (after IP assignment is complete)
     if (requestCounter == 0) {
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " → LASPManager: About to bind socket to port 5000" << endl;
+        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket state before binding: " << (serviceSocket.getState() == UdpSocket::CLOSED ? "CLOSED" : "OPEN") << endl;
         
         // Check current interface state before binding
         auto interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
@@ -224,8 +226,24 @@ void VehicleServiceApp::sendServiceRequest()
         
         // Bind socket to the assigned IP address and port
         EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Binding socket to " << vehicleIP << ":5000" << endl;
-        serviceSocket.bind(L3Address(vehicleIP.c_str()), 5000);
-        EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
+        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " checking if port 5000 is available..." << endl;
+        
+        try {
+            serviceSocket.bind(L3Address(vehicleIP.c_str()), 5000);
+            EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5000" << endl;
+            EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket state after binding: " << (serviceSocket.getState() == UdpSocket::CLOSED ? "CLOSED" : "OPEN") << endl;
+            EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket bound successfully to port 5000" << endl;
+        } catch (const std::exception& e) {
+            EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " failed to bind socket: " << e.what() << endl;
+            EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " trying alternative port 5001..." << endl;
+            try {
+                serviceSocket.bind(L3Address(vehicleIP.c_str()), 5001);
+                EV_WARN << "[FLOW-1] VEHICLE " << vehicleId << " -> LASPManager: Socket bound to " << vehicleIP << ":5001" << endl;
+            } catch (const std::exception& e2) {
+                EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " failed to bind to alternative port: " << e2.what() << endl;
+                return;
+            }
+        }
         
         // Debug: Check routing table after IP assignment
         auto routingTable = getModuleByPath("^.wlan[0].ipv4.routingTable");
@@ -264,11 +282,17 @@ void VehicleServiceApp::sendServiceRequest()
     EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": Packet size: " << packet->getByteLength() << " bytes" << endl;
     EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": Payload size: " << payload->getChunkLength() << " bytes" << endl;
     EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": LASPManager address: " << laspManagerAddress.str() << endl;
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket state before sendTo: " << (serviceSocket.getState() == UdpSocket::CLOSED ? "CLOSED" : "OPEN") << endl;
     
     // Send to LASP Manager
-    serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
-    
-    EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": sendTo() called successfully" << endl;
+    try {
+        serviceSocket.sendTo(packet, laspManagerAddress, laspManagerPort);
+        EV_WARN << "[DEBUG] Vehicle " << vehicleId << ": sendTo() called successfully" << endl;
+    } catch (const std::exception& e) {
+        EV_WARN << "[ERROR-SOCKET] Vehicle " << vehicleId << " failed to send packet: " << e.what() << endl;
+        delete packet;
+        return;
+    }
     
     emit(serviceRequestsSent, 1);
     requestCounter++;
@@ -294,9 +318,15 @@ ServiceType VehicleServiceApp::selectServiceBasedOnContext()
 
 void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
 {
+    int vehicleId = getParentModule()->getIndex();
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " socketDataArrived called" << endl;
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " socket pointer: " << socket << endl;
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " serviceSocket pointer: " << &serviceSocket << endl;
+    EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " packet name: " << packet->getName() << endl;
+    
     if (socket == &serviceSocket) {
+        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " processing service socket message" << endl;
         // This is a service response from EdgeServer
-        int vehicleId = getParentModule()->getIndex();
         EV_WARN << "[FLOW-6] VEHICLE " << vehicleId << " <- EDGESERVER: Received response packet: " << packet->getName() << endl;
         
         try {
@@ -320,6 +350,7 @@ void VehicleServiceApp::socketDataArrived(UdpSocket *socket, Packet *packet)
         }
         delete packet;
     } else {
+        EV_WARN << "[DEBUG-SOCKET] Vehicle " << vehicleId << " delegating to parent socket" << endl;
         // This is the parent's socket - delegate to parent class
         VeinsInetSampleApplication::socketDataArrived(socket, packet);
     }
