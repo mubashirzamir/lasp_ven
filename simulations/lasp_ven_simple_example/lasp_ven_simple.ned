@@ -27,27 +27,27 @@ network LaspVenSimpleSimulation
 
     submodules:
         radioMedium: UnitDiskRadioMedium {
-            @display("p=168.672,96.383995");
+            @display("p=889.54395,70.28");
         }
 
         configurator: Ipv4NetworkConfigurator {
-            @display("p=716.85596,692.76");
+            @display("p=889.54395,248.99199");
         }
 
         veinsManager: VeinsInetManager {
-            @display("p=375.496,692.76");
+            @display("p=662.63995,72.287994");
         }
 
         visualizer: IntegratedVisualizer {
-            @display("p=84.336,867.456");
+            @display("p=662.63995,251");
         }
 
         roadsCanvasVisualizer: RoadsCanvasVisualizer {
-            @display("p=375.496,867.456");
+            @display("p=895.568,676.696");
         }
 
         roadsOsgVisualizer: RoadsOsgVisualizer if useOsg {
-            @display("p=716.85596,867.456");
+            @display("p=889.54395,451.8");
         }
 
         // LASP Manager (Regional Edge Computing Orchestrator) - Center of square road
@@ -57,10 +57,10 @@ network LaspVenSimpleSimulation
             // Application configuration
             numApps = 1;
             app[0].typename = "lasp_ven.lasp_ven_simple.LASPManager";
-            
+
             // Network stack configuration
             numWlanInterfaces = 1;
-            
+
             // Ensure proper network initialization
             hasIpv4 = true;
             hasUdp = true;
@@ -70,11 +70,12 @@ network LaspVenSimpleSimulation
         edgeServer[4]: StandardHost {
             numApps = 1;
             app[0].typename = "lasp_ven.lasp_ven_simple.EdgeServerApp";
-            
+
             // Network stack configuration
             numWlanInterfaces = 1;
             hasIpv4 = true;
             hasUdp = true;
+            @display("p=248.99199,437.744");
         }
 
     connections allowunconnected:

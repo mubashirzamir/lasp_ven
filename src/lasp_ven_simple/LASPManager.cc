@@ -1,6 +1,8 @@
 #include "LASPManager.h"
 #include "strategies/ThresholdStrategy.h"
 #include "strategies/GreedyStrategy.h"
+#include "strategies/GreedyLatencyAwareStrategy.h"
+#include "strategies/ThresholdLatencyAwareStrategy.h"
 #include "utils/ServicePlacementUtils.h"
 #include "inet/common/ModuleAccess.h"
 #include "inet/common/packet/Packet.h"
@@ -61,6 +63,12 @@ void LASPManager::initialize(int stage)
         requestsServed = registerSignal("requestsServed");
         averageLatency = registerSignal("averageLatency");
         serverUtilization = registerSignal("serverUtilization");
+        
+        // Initialize QoS metrics
+        requestSuccessRate = registerSignal("requestSuccessRate");
+        requestRejectionRate = registerSignal("requestRejectionRate");
+        serviceCompletionTime = registerSignal("serviceCompletionTime");
+        loadBalancingEfficiency = registerSignal("loadBalancingEfficiency");
         
             EV_WARN << "Statistics signals registered successfully" << endl;
     EV_WARN << "=== LASP MANAGER INITIALIZED ===" << endl;
@@ -338,6 +346,10 @@ void LASPManager::processServiceRequest(const ServiceRequest& request)
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
+        // Calculate service completion time (estimated)
+        double completionTime = placement->estimatedLatency / 1000.0; // Convert ms to seconds
+        emit(serviceCompletionTime, completionTime);
+        
         // Send deployment command to selected edge server
         EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Sending deployment command to server " << placement->serverId << endl;
         sendDeploymentCommand(*placement, request);
@@ -346,6 +358,8 @@ void LASPManager::processServiceRequest(const ServiceRequest& request)
     }
     else {
         EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: No suitable server found for vehicle " << request.vehicleId << endl;
+        // Track rejected requests
+        emit(requestRejectionRate, 1);
     }
 }
 
@@ -356,6 +370,16 @@ ServicePlacement* LASPManager::findBestPlacement(const ServiceRequest& request)
     }
     else if (currentStrategy == "greedy") {
         return GreedyStrategy::placeService(request, edgeServers);
+    }
+    else if (currentStrategy == "greedyLatencyAware") {
+        double loadWeight = par("loadWeight").doubleValue();
+        double latencyWeight = par("latencyWeight").doubleValue();
+        return GreedyLatencyAwareStrategy::placeService(request, edgeServers, loadWeight, latencyWeight);
+    }
+    else if (currentStrategy == "thresholdLatencyAware") {
+        double loadWeight = par("loadWeight").doubleValue();
+        double latencyWeight = par("latencyWeight").doubleValue();
+        return ThresholdLatencyAwareStrategy::placeService(request, edgeServers, loadThreshold, loadWeight, latencyWeight);
     }
     else {
         EV_ERROR << "Unknown strategy: " << currentStrategy << endl;
@@ -383,16 +407,54 @@ void LASPManager::evaluateCurrentPlacements()
     
     // Calculate average server utilization
     double totalUtilization = 0.0;
+    std::vector<double> utilizations;
     for (const auto& server : edgeServers) {
-        totalUtilization += server.second.currentLoad / server.second.computeCapacity;
+        double utilization = server.second.currentLoad / server.second.computeCapacity;
+        totalUtilization += utilization;
+        utilizations.push_back(utilization);
     }
     double avgUtilization = totalUtilization / edgeServers.size();
     emit(serverUtilization, avgUtilization);
+    
+    // Calculate load balancing efficiency (standard deviation of utilizations)
+    if (utilizations.size() > 1) {
+        double variance = 0.0;
+        for (double util : utilizations) {
+            variance += (util - avgUtilization) * (util - avgUtilization);
+        }
+        variance /= utilizations.size();
+        double loadBalanceEfficiency = 1.0 - std::sqrt(variance); // Higher is better (less variance)
+        emit(loadBalancingEfficiency, loadBalanceEfficiency);
+    }
+    
+    // Calculate success rate based on total requests vs served requests
+    static int totalRequests = 0;
+    static int servedRequests = 0;
+    totalRequests++; // Increment for each evaluation cycle
+    
+    if (!activePlacements.empty()) {
+        servedRequests = activePlacements.size();
+        double successRate = (double)servedRequests / totalRequests;
+        emit(requestSuccessRate, successRate);
+    }
     
     // Reduced frequency logging to save tokens
     static int utilizationLogCounter = 0;
     if (++utilizationLogCounter % 20 == 0) {  // Log every 20th evaluation
         EV_WARN << "[UTIL] Server utilization: " << (avgUtilization * 100) << "%" << endl;
+        if (utilizations.size() > 1) {
+            double variance = 0.0;
+            for (double util : utilizations) {
+                variance += (util - avgUtilization) * (util - avgUtilization);
+            }
+            variance /= utilizations.size();
+            double loadBalanceEfficiency = 1.0 - std::sqrt(variance);
+            EV_WARN << "[QOS] Load balancing efficiency: " << (loadBalanceEfficiency * 100) << "%" << endl;
+        }
+        if (!activePlacements.empty()) {
+            double successRate = (double)servedRequests / totalRequests;
+            EV_WARN << "[QOS] Request success rate: " << (successRate * 100) << "%" << endl;
+        }
     }
 }
 

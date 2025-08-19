@@ -58,3 +58,5 @@ Thumbs.db
 # lasp_ven
 *.exe
 *.dll
+
+report/

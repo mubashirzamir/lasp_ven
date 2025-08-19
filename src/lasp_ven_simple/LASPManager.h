@@ -75,6 +75,12 @@ private:
     simsignal_t averageLatency;
     simsignal_t serverUtilization;
     
+    // QoS Metrics
+    simsignal_t requestSuccessRate;
+    simsignal_t requestRejectionRate;
+    simsignal_t serviceCompletionTime;
+    simsignal_t loadBalancingEfficiency;
+    
     // Parameters
     double evaluationInterval;
     int numEdgeServers;
