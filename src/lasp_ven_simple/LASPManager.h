@@ -85,6 +85,10 @@ private:
     double evaluationInterval;
     int numEdgeServers;
     
+    // Statistics tracking
+    int totalRequestsReceived;
+    int totalRequestsServed;
+    
     // Timer for periodic evaluation
     cMessage* evaluationTimer;
     

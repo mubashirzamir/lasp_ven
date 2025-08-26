@@ -70,7 +70,11 @@ void LASPManager::initialize(int stage)
         serviceCompletionTime = registerSignal("serviceCompletionTime");
         loadBalancingEfficiency = registerSignal("loadBalancingEfficiency");
         
-            EV_WARN << "Statistics signals registered successfully" << endl;
+        // Initialize statistics tracking
+        totalRequestsReceived = 0;
+        totalRequestsServed = 0;
+        
+        EV_WARN << "Statistics signals registered successfully" << endl;
     EV_WARN << "=== LASP MANAGER INITIALIZED ===" << endl;
     
     // LASPManager is now starting properly via normal lifecycle
@@ -336,19 +340,26 @@ void LASPManager::socketClosed(UdpSocket *socket)
 
 void LASPManager::processServiceRequest(const ServiceRequest& request)
 {
-            EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Processing request from vehicle " << request.vehicleId << endl;
+    totalRequestsReceived++; // Track total requests received
+    
+    EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Processing request from vehicle " << request.vehicleId << endl;
     
     ServicePlacement* placement = findBestPlacement(request);
     if (placement) {
         EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Found placement on server " << placement->serverId << " (latency: " << placement->estimatedLatency << "ms)" << endl;
         
         activePlacements.push_back(*placement);
+        totalRequestsServed++; // Track successful requests
         emit(requestsServed, 1);
         emit(averageLatency, placement->estimatedLatency);
         
         // Calculate service completion time (estimated)
         double completionTime = placement->estimatedLatency / 1000.0; // Convert ms to seconds
         emit(serviceCompletionTime, completionTime);
+        
+        // Log QoS metrics to console
+        EV_WARN << "[QOS] Average latency: " << placement->estimatedLatency << "ms" << endl;
+        EV_WARN << "[QOS] Service completion time: " << completionTime << "s" << endl;
         
         // Send deployment command to selected edge server
         EV_WARN << "[FLOW-3] LASPManager -> EDGESERVER: Sending deployment command to server " << placement->serverId << endl;
@@ -454,6 +465,19 @@ void LASPManager::evaluateCurrentPlacements()
         if (!activePlacements.empty()) {
             double successRate = (double)servedRequests / totalRequests;
             EV_WARN << "[QOS] Request success rate: " << (successRate * 100) << "%" << endl;
+            
+            // Calculate average latency and completion time from active placements
+            double totalLatency = 0.0;
+            double totalCompletionTime = 0.0;
+            for (const auto& placement : activePlacements) {
+                totalLatency += placement.estimatedLatency;
+                totalCompletionTime += placement.estimatedLatency / 1000.0;
+            }
+            double avgLatency = totalLatency / activePlacements.size();
+            double avgCompletionTime = totalCompletionTime / activePlacements.size();
+            
+            EV_WARN << "[QOS] Average latency: " << avgLatency << "ms" << endl;
+            EV_WARN << "[QOS] Service completion time: " << avgCompletionTime << "s" << endl;
         }
     }
 }
@@ -550,8 +574,56 @@ void LASPManager::finish()
 {
     ApplicationBase::finish();
     
-    EV_WARN << "LASPManager finished. Total requests served: " 
-            << activePlacements.size() << endl;
+    // Calculate final metrics
+    double totalUtilization = 0.0;
+    std::vector<double> utilizations;
+    for (const auto& server : edgeServers) {
+        double utilization = server.second.currentLoad / server.second.computeCapacity;
+        totalUtilization += utilization;
+        utilizations.push_back(utilization);
+    }
+    double avgUtilization = totalUtilization / edgeServers.size();
+    
+    // Calculate load balancing efficiency
+    double loadBalanceEfficiency = 0.0;
+    if (utilizations.size() > 1) {
+        double variance = 0.0;
+        for (double util : utilizations) {
+            variance += (util - avgUtilization) * (util - avgUtilization);
+        }
+        variance /= utilizations.size();
+        loadBalanceEfficiency = 1.0 - std::sqrt(variance);
+    }
+    
+    // Calculate success rate
+    double successRate = 0.0;
+    if (totalRequestsReceived > 0) {
+        successRate = (double)totalRequestsServed / totalRequestsReceived;
+    }
+    
+    // Calculate average latency and completion time
+    double avgLatency = 0.0;
+    double avgCompletionTime = 0.0;
+    if (!activePlacements.empty()) {
+        double totalLatency = 0.0;
+        for (const auto& placement : activePlacements) {
+            totalLatency += placement.estimatedLatency;
+        }
+        avgLatency = totalLatency / activePlacements.size();
+        avgCompletionTime = avgLatency / 1000.0; // Convert to seconds
+    }
+    
+    // Print final metrics summary
+    EV_WARN << "=== FINAL METRICS SUMMARY ===" << endl;
+    EV_WARN << "FINAL METRICS: Strategy: " << currentStrategy << endl;
+    EV_WARN << "FINAL METRICS: Total requests served: " << activePlacements.size() << endl;
+    EV_WARN << "FINAL METRICS: Request success rate: " << (successRate * 100) << "%" << endl;
+    EV_WARN << "FINAL METRICS: Load balancing efficiency: " << (loadBalanceEfficiency * 100) << "%" << endl;
+    EV_WARN << "FINAL METRICS: Average server utilization: " << (avgUtilization * 100) << "%" << endl;
+    EV_WARN << "FINAL METRICS: Average latency: " << avgLatency << "ms" << endl;
+    EV_WARN << "FINAL METRICS: Service completion time: " << avgCompletionTime << "s" << endl;
+    EV_WARN << "FINAL METRICS: Load threshold: " << (loadThreshold * 100) << "%" << endl;
+    EV_WARN << "=== END FINAL METRICS ===" << endl;
 }
 
 } // namespace lasp_ven_simple 

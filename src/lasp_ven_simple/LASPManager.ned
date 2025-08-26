@@ -9,8 +9,10 @@ simple LASPManager like IApp
         @display("i=block/server");
         
         // Strategy parameters
-        string strategy @enum("threshold", "greedy") = default("threshold");
+        string strategy @enum("threshold", "greedy", "greedyLatencyAware", "thresholdLatencyAware") = default("threshold");
         double loadThreshold = default(0.8);
+        double loadWeight = default(0.5);
+        double latencyWeight = default(0.5);
         double evaluationInterval @unit(s) = default(2s);
         int numEdgeServers = default(4);
         int localPort = default(9999);
